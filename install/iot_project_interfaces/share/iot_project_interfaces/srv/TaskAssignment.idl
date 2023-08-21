@@ -1,0 +1,35 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from iot_project_interfaces/srv/TaskAssignment.srv
+// generated code does not contain a copyright notice
+
+#include "geometry_msgs/msg/Point.idl"
+#include "geometry_msgs/msg/Vector3.idl"
+
+module iot_project_interfaces {
+  module srv {
+    struct TaskAssignment_Request {
+      uint8 structure_needs_at_least_one_member;
+    };
+    struct TaskAssignment_Response {
+      string simulation_name;
+
+      int64 no_drones;
+
+      sequence<geometry_msgs::msg::Point> target_positions;
+
+      sequence<double> target_thresholds;
+
+      double aoi_weight;
+
+      double violation_weight;
+
+      double fairness_weight;
+
+      int64 simulation_time;
+
+      geometry_msgs::msg::Vector3 wind_vector;
+
+      sequence<double> last_visits;
+    };
+  };
+};

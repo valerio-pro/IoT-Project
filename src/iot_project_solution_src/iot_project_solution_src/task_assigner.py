@@ -8,9 +8,21 @@ from rclpy.node import Node
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.action import ActionClient
 
+import six
+import sys
+sys.modules['sklearn.externals.six'] = six
+from sklearn.cluster import KMeans
+from mlrose import TravellingSales, TSPOpt, genetic_alg
+import numpy as np
+
 from rosgraph_msgs.msg import Clock
 from iot_project_interfaces.srv import TaskAssignment
 from iot_project_solution_interfaces.action import PatrollingAction
+
+from geometry_msgs.msg import Point
+from nav_msgs.msg import Odometry
+from math_utils import get_yaw, compute_closest_drone_to_target, compute_closest_drone_to_centroid, compute_closest_target_to_drone, rotate
+
 
 class TaskAssigner(Node):
 
@@ -19,16 +31,22 @@ class TaskAssigner(Node):
         super().__init__('task_assigner')
             
         self.task = None
-        self.no_drones = 0
-        self.targets = []
-        self.thresholds = []
+        self.no_drones: int = 0
+        self.targets: list[Point] = []
+        self.thresholds: list = []
 
-        self.action_servers = []
-        self.current_tasks =  []
-        self.idle = []
+        self.action_servers: list = []
+        self.current_tasks: list =  []
+        self.idle: list[bool] = []
 
         self.sim_time = 0
 
+        self.position: list[Point] = [] # index "i" contains the coordinates (a Point) of the drone with id "i"
+        self.yaw: list = []
+        self.odometry_topic: list = []
+
+        self.drone_assignment: dict[int, list[Point]] = {} # contains pairs drone_id: list_of_assigned_targets
+        self.centroids_targets_assignment: dict = {} # contains pairs cluster_centroid: list_of_targets_belonging_to_that_centroid
 
         self.task_announcer = self.create_client(
             TaskAssignment,
@@ -41,6 +59,7 @@ class TaskAssigner(Node):
             self.store_sim_time_callback,
             10
         )
+
 
     # Function used to wait for the current task. After receiving the task, it submits
     # to all the drone topics
@@ -66,18 +85,21 @@ class TaskAssigner(Node):
     # Once that is done, it creates a client for the action servers of all the drones
     def first_assignment_callback(self, assignment_future):
 
-        task : TaskAssignment.Response = assignment_future.result()
+        task: TaskAssignment.Response = assignment_future.result()
 
-        self.task = task
-        self.no_drones = task.no_drones
-        self.targets = task.target_positions
-        self.thresholds = task.target_thresholds
-
-        self.current_tasks = [None]*self.no_drones
-        self.idle = [True] * self.no_drones
+        # Subscribe Task Assigner to the Odometry topic of each drone 
+        for d in range(task.no_drones):
+            self.odometry_topic.append(
+                self.create_subscription(
+                    Odometry,
+                    'X3_%d/odometry' % d,
+                    self.store_position_callback,
+                    10
+                )
+            )
 
         # Now create a client for the action server of each drone
-        for d in range(self.no_drones):
+        for d in range(task.no_drones):
             self.action_servers.append(
                 ActionClient(
                     self,
@@ -85,6 +107,67 @@ class TaskAssigner(Node):
                     'X3_%d/patrol_targets' % d,
                 )
             )
+
+        self.task = task
+        self.targets = task.target_positions
+        self.thresholds = task.target_thresholds
+
+        self.current_tasks = [None]*task.no_drones
+        self.idle = [True]*task.no_drones
+
+        self.position = [None]*task.no_drones
+        self.yaw = [None]*task.no_drones
+
+        # Wait for all starting positions to be initialized.
+        # We need to wait here since both the trivial and non-trivial case exploit the 
+        # drones' starting positions
+        while not self.all_positions_initialized():
+            pass
+
+        # We are in the trivial case. Compute the assignment of targets here
+        if task.no_drones >= len(self.targets):
+            self.drone_assignment = self.trivial_case(task.no_drones)
+        # We are not in the trivial case
+        else:
+
+            # "kmeans.labels_" contains the indexes of the cluster each sample/target belongs to
+            # "kmeans.cluster_centers_" contains the coordinates of cluster centers
+            kmeans = KMeans(init="random", n_clusters=task.no_drones, n_init=10)
+            target_samples = np.array([[target.x, target.y, target.z] for target in self.targets])
+            kmeans.fit(target_samples)
+            centroid_idx: int = 0
+            for centroid in kmeans.cluster_centers_:
+                self.centroids_targets_assignment[tuple(centroid)] = [self.targets[label_idx] for label_idx, label in enumerate(kmeans.labels_) if label == centroid_idx]
+                centroid_idx += 1
+            self.drone_assignment = self.assign_drones_to_clusters(task.no_drones)
+
+            # Solve TSP on each cluster
+            # # "best_state" is the computed list of target indexes to be inspected
+            for drone_id in range(task.no_drones):
+                fitness_coords = TravellingSales(coords=[(drone_target.x, drone_target.y, drone_target.z) for drone_target in self.drone_assignment[drone_id]])
+                problem_fit = TSPOpt(length=len(self.drone_assignment[drone_id]), fitness_fn=fitness_coords, maximize=False)
+                best_state, _ = genetic_alg(problem_fit, mutation_prob=0.1, max_attempts=10, max_iters=100)
+                old_assignment: list[Point] = self.drone_assignment[drone_id]
+                self.drone_assignment[drone_id] = []
+                for target in best_state:
+                    self.drone_assignment[drone_id].append(old_assignment[target])
+                closest_target_idx, _ = compute_closest_target_to_drone(self.position[drone_id], self.drone_assignment[drone_id])
+                self.drone_assignment[drone_id] = rotate(self.drone_assignment[drone_id], len(self.drone_assignment[drone_id])-closest_target_idx)
+                
+        # Initialize number of drones
+        self.no_drones = task.no_drones
+
+
+    # Listen for drones positions
+    def store_position_callback(self, msg: Odometry):
+        drone_id: int = int(str(str(msg.header.frame_id.split(' ')[2]).split('/')[0]))
+        self.position[drone_id] = msg.pose.pose.position
+        self.yaw[drone_id] = get_yaw(
+            msg.pose.pose.orientation.x,
+            msg.pose.pose.orientation.y,
+            msg.pose.pose.orientation.z,
+            msg.pose.pose.orientation.w
+        )
 
 
     # This method starts on a separate thread an ever-going patrolling task, it does that
@@ -96,9 +179,7 @@ class TaskAssigner(Node):
             while True:
                 for d in range(self.no_drones):
                     if self.idle[d]:
-
                         Thread(target=self.submit_task, args=(d,)).start()
-
                 time.sleep(0.1)
 
         Thread(target=keep_patrolling_inner).start()
@@ -117,7 +198,7 @@ class TaskAssigner(Node):
     #      visit of each target can be read from the array last_visits in the service message.
     #      The simulation time is already stored in self.sim_time for you to use in case
     #      Times are all in nanoseconds.
-    def submit_task(self, drone_id, targets_to_patrol = None):
+    def submit_task(self, drone_id: int, targets_to_patrol: list[Point] = []):
 
         self.get_logger().info("Submitting task for drone X3_%s" % drone_id)
     
@@ -126,9 +207,16 @@ class TaskAssigner(Node):
 
         self.idle[drone_id] = False
 
+        # MIGHT REMOVE DISTINCTIONS BETWEEN TRIVIAL AND NON-TRIVIAL. ALREADY DISTINGUISHING CASES IN first_assignment_callback
         if not targets_to_patrol:
-            targets_to_patrol = self.targets.copy()
-            random.shuffle(targets_to_patrol)
+            # We are in the trivial case.
+            if self.no_drones >= len(self.targets):
+                targets_to_patrol = self.drone_assignment[drone_id]
+            # We are not in the trivial case
+            else:
+                #targets_to_patrol = self.targets.copy()
+                targets_to_patrol = self.drone_assignment[drone_id]
+                #random.shuffle(targets_to_patrol)
 
         patrol_task =  PatrollingAction.Goal()
         patrol_task.targets = targets_to_patrol
@@ -168,11 +256,54 @@ class TaskAssigner(Node):
         self.clock = msg.clock.sec * 10**9 + msg.clock.nanosec
 
 
+    # Executed when self.no_drones >= len(self.targets)
+    # For each target it computes the closest drone to that target. Targets are considered in order
+    def trivial_case(self, no_drones: int) -> dict[int, list[Point]]:
+        available_drones: dict[int, Point] = {d: self.position[d] for d in range(no_drones)}
+        drone_assignment: dict[int, list[Point]] = {}
+        for target in self.targets:
+            drone: int = compute_closest_drone_to_target(target, available_drones)
+            available_drones.pop(drone) # removes occurrence of the given key/drone
+            drone_assignment[drone] = [target]
+        for remaining_drone in available_drones:
+            drone_assignment[remaining_drone] = []
+        return drone_assignment
+
+
+    # Executed when self.no_drones >= len(self.targets)
+    def trivial_case_2(self, no_drones: int) -> dict[int, list[Point]]:
+        drone_assignment: dict[int, list[Point]] = {}
+        curr_drone_id: int = 0
+        for target in self.targets:
+            drone_assignment[curr_drone_id] = [target]
+            curr_drone_id += 1
+        for _ in range(no_drones-len(self.targets)):
+            drone_assignment[curr_drone_id] = []
+            curr_drone_id += 1
+        return drone_assignment
+    
+
+    # Used to compute the closest drone to each cluster center
+    def assign_drones_to_clusters(self, no_drones: int) -> dict[int, list[Point]]:
+        available_drones: dict[int, Point] = {d: self.position[d] for d in range(no_drones)}
+        drone_assignment: dict[int, list[Point]] = {}
+        for centroid in self.centroids_targets_assignment: # the number of centroids is equal to the number of drones
+            drone: int = compute_closest_drone_to_centroid(centroid, available_drones)
+            available_drones.pop(drone) # removes occurrence of the given key/drone
+            drone_assignment[drone] = self.centroids_targets_assignment[centroid]
+        return drone_assignment
+            
+
+    def all_positions_initialized(self) -> bool:
+        for pos in self.position:
+            if not pos:
+                return False
+        return True
         
+
 def main():
 
     time.sleep(3.0)
-    
     rclpy.init()
 
     task_assigner = TaskAssigner()
@@ -188,4 +319,3 @@ def main():
     task_assigner.destroy_node()
 
     rclpy.shutdown()
-

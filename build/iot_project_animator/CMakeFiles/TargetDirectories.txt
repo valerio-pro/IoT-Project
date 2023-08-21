@@ -1,0 +1,10 @@
+/home/valerio/Desktop/IoT-Project/build/iot_project_animator/CMakeFiles/uninstall.dir
+/home/valerio/Desktop/IoT-Project/build/iot_project_animator/CMakeFiles/iot_project_animator_uninstall.dir
+/home/valerio/Desktop/IoT-Project/build/iot_project_animator/CMakeFiles/color_changer.dir
+/home/valerio/Desktop/IoT-Project/build/iot_project_animator/CMakeFiles/test.dir
+/home/valerio/Desktop/IoT-Project/build/iot_project_animator/CMakeFiles/edit_cache.dir
+/home/valerio/Desktop/IoT-Project/build/iot_project_animator/CMakeFiles/rebuild_cache.dir
+/home/valerio/Desktop/IoT-Project/build/iot_project_animator/CMakeFiles/list_install_components.dir
+/home/valerio/Desktop/IoT-Project/build/iot_project_animator/CMakeFiles/install.dir
+/home/valerio/Desktop/IoT-Project/build/iot_project_animator/CMakeFiles/install/local.dir
+/home/valerio/Desktop/IoT-Project/build/iot_project_animator/CMakeFiles/install/strip.dir

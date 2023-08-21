@@ -1,0 +1,4 @@
+/home/valerio/Desktop/IoT-Project/build/iot_project_interfaces/rosidl_adapter/iot_project_interfaces:msg/TargetsTimeLeft.idl
+/home/valerio/Desktop/IoT-Project/build/iot_project_interfaces/rosidl_adapter/iot_project_interfaces:msg/TargetPositions.idl
+/home/valerio/Desktop/IoT-Project/build/iot_project_interfaces/rosidl_adapter/iot_project_interfaces:srv/TaskAssignment.idl
+/home/valerio/Desktop/IoT-Project/build/iot_project_interfaces/rosidl_adapter/iot_project_interfaces:srv/ColorTarget.idl

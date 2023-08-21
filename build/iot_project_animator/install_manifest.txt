@@ -1,0 +1,16 @@
+/home/valerio/Desktop/IoT-Project/install/iot_project_animator/lib/iot_project_animator/color_changer
+/home/valerio/Desktop/IoT-Project/install/iot_project_animator/share/ament_index/resource_index/package_run_dependencies/iot_project_animator
+/home/valerio/Desktop/IoT-Project/install/iot_project_animator/share/ament_index/resource_index/parent_prefix_path/iot_project_animator
+/home/valerio/Desktop/IoT-Project/install/iot_project_animator/share/iot_project_animator/environment/ament_prefix_path.sh
+/home/valerio/Desktop/IoT-Project/install/iot_project_animator/share/iot_project_animator/environment/ament_prefix_path.dsv
+/home/valerio/Desktop/IoT-Project/install/iot_project_animator/share/iot_project_animator/environment/path.sh
+/home/valerio/Desktop/IoT-Project/install/iot_project_animator/share/iot_project_animator/environment/path.dsv
+/home/valerio/Desktop/IoT-Project/install/iot_project_animator/share/iot_project_animator/local_setup.bash
+/home/valerio/Desktop/IoT-Project/install/iot_project_animator/share/iot_project_animator/local_setup.sh
+/home/valerio/Desktop/IoT-Project/install/iot_project_animator/share/iot_project_animator/local_setup.zsh
+/home/valerio/Desktop/IoT-Project/install/iot_project_animator/share/iot_project_animator/local_setup.dsv
+/home/valerio/Desktop/IoT-Project/install/iot_project_animator/share/iot_project_animator/package.dsv
+/home/valerio/Desktop/IoT-Project/install/iot_project_animator/share/ament_index/resource_index/packages/iot_project_animator
+/home/valerio/Desktop/IoT-Project/install/iot_project_animator/share/iot_project_animator/cmake/iot_project_animatorConfig.cmake
+/home/valerio/Desktop/IoT-Project/install/iot_project_animator/share/iot_project_animator/cmake/iot_project_animatorConfig-version.cmake
+/home/valerio/Desktop/IoT-Project/install/iot_project_animator/share/iot_project_animator/package.xml

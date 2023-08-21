@@ -1,0 +1,13 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/iot_project_solution_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/iot_project_solution_interfaces/action/detail/patrolling_action__type_support.c.o"
+  "CMakeFiles/iot_project_solution_interfaces__rosidl_typesupport_introspection_c.dir/rosidl_typesupport_introspection_c/iot_project_solution_interfaces/action/detail/patrolling_action__type_support.c.o.d"
+  "libiot_project_solution_interfaces__rosidl_typesupport_introspection_c.pdb"
+  "libiot_project_solution_interfaces__rosidl_typesupport_introspection_c.so"
+  "rosidl_typesupport_introspection_c/iot_project_solution_interfaces/action/detail/patrolling_action__rosidl_typesupport_introspection_c.h"
+  "rosidl_typesupport_introspection_c/iot_project_solution_interfaces/action/detail/patrolling_action__type_support.c"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang C)
+  include(CMakeFiles/iot_project_solution_interfaces__rosidl_typesupport_introspection_c.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()

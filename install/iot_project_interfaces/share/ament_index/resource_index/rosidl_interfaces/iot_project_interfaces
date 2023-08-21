@@ -1,0 +1,12 @@
+msg/TargetPositions.idl
+msg/TargetPositions.msg
+msg/TargetsTimeLeft.idl
+msg/TargetsTimeLeft.msg
+srv/ColorTarget.idl
+srv/ColorTarget.srv
+srv/ColorTarget_Request.msg
+srv/ColorTarget_Response.msg
+srv/TaskAssignment.idl
+srv/TaskAssignment.srv
+srv/TaskAssignment_Request.msg
+srv/TaskAssignment_Response.msg

@@ -1,0 +1,4 @@
+[console_scripts]
+drone_controller = iot_project_solution_src.drone_controller:main
+task_assigner = iot_project_solution_src.task_assigner:main
+

@@ -1,0 +1,19 @@
+// generated from rosidl_adapter/resource/action.idl.em
+// with input from iot_project_solution_interfaces/action/PatrollingAction.action
+// generated code does not contain a copyright notice
+
+#include "geometry_msgs/msg/Point.idl"
+
+module iot_project_solution_interfaces {
+  module action {
+    struct PatrollingAction_Goal {
+      sequence<geometry_msgs::msg::Point> targets;
+    };
+    struct PatrollingAction_Result {
+      string success;
+    };
+    struct PatrollingAction_Feedback {
+      string progress;
+    };
+  };
+};

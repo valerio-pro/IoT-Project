@@ -1,0 +1,12 @@
+// generated from rosidl_adapter/resource/msg.idl.em
+// with input from iot_project_interfaces/msg/TargetsTimeLeft.msg
+// generated code does not contain a copyright notice
+
+
+module iot_project_interfaces {
+  module msg {
+    struct TargetsTimeLeft {
+      sequence<double> times;
+    };
+  };
+};

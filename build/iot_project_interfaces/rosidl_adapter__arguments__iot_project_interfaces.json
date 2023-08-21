@@ -1,0 +1,9 @@
+{
+  "package_name": "iot_project_interfaces",
+  "non_idl_tuples": [
+    "/home/valerio/Desktop/IoT-Project/src/iot_project_interfaces:msg/TargetsTimeLeft.msg",
+    "/home/valerio/Desktop/IoT-Project/src/iot_project_interfaces:msg/TargetPositions.msg",
+    "/home/valerio/Desktop/IoT-Project/src/iot_project_interfaces:srv/TaskAssignment.srv",
+    "/home/valerio/Desktop/IoT-Project/src/iot_project_interfaces:srv/ColorTarget.srv"
+  ]
+}
