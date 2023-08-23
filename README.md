@@ -1,6 +1,6 @@
 # Internet of Things Project A.Y. 2022/2023
 
-This repository contains my solution for the project of the Internet of Things course held at Sapienza University during the a.y. 2022/2023. My solution can be found in the **iot_project_solution_src** package.
+This repository contains my solution for the project of the Internet of Things course held at Sapienza University during the a.y. 2022/2023. My solution can be found in the **src/iot_project_solution_src** package.
 
 # IoT-Project v1.1.2
 
