@@ -16,6 +16,7 @@ from mlrose import TravellingSales, TSPOpt, genetic_alg
 import numpy as np
 
 from rosgraph_msgs.msg import Clock
+from iot_project_interfaces.msg import TargetsTimeLeft
 from iot_project_interfaces.srv import TaskAssignment
 from iot_project_solution_interfaces.action import PatrollingAction
 
@@ -40,6 +41,7 @@ class TaskAssigner(Node):
         self.idle: list[bool] = []
 
         self.sim_time = 0
+        self.targets_time_left: list = []
 
         self.position: list[Point] = [] # index "i" contains the coordinates (a Point) of the drone with id "i"
         self.yaw: list = []
@@ -57,6 +59,13 @@ class TaskAssigner(Node):
             Clock,
             '/world/iot_project_world/clock',
             self.store_sim_time_callback,
+            10
+        )
+
+        self.targets_time_left_topic = self.create_subscription(
+            TargetsTimeLeft,
+            '/task_assigner/targets_time_left',
+            self.store_targets_time_left,
             10
         )
 
@@ -151,7 +160,7 @@ class TaskAssigner(Node):
                 self.drone_assignment[drone_id] = []
                 for target in best_state:
                     self.drone_assignment[drone_id].append(old_assignment[target])
-                closest_target_idx, c = compute_closest_target_to_drone(self.position[drone_id], self.drone_assignment[drone_id])
+                closest_target_idx, _ = compute_closest_target_to_drone(self.position[drone_id], self.drone_assignment[drone_id])
                 self.drone_assignment[drone_id] = rotate(self.drone_assignment[drone_id], len(self.drone_assignment[drone_id])-closest_target_idx)
                 
         # Initialize number of drones
@@ -168,6 +177,11 @@ class TaskAssigner(Node):
             msg.pose.pose.orientation.z,
             msg.pose.pose.orientation.w
         )
+
+    # Listen for targets' remaining time until expiration
+    def store_targets_time_left(self, msg: TargetsTimeLeft):
+        self.targets_time_left = [float(t/(10**9)) for t in msg.times]
+        print(self.targets_time_left)
 
 
     # This method starts on a separate thread an ever-going patrolling task, it does that
