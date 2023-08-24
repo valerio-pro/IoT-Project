@@ -111,7 +111,7 @@ class DroneController(Node):
         # requested height (not required for the exercise), you should keep on
         # listening to the current position and reduce the linear speed when 
         # you get close to the desired altitude
-        while(self.position.z < altitude):
+        while (self.position.z < altitude):
             self.cmd_vel_topic.publish(move_up)
             time.sleep(0.1)
 
@@ -141,7 +141,7 @@ class DroneController(Node):
         # Prepare the cmd_vel message
         move_msg = Twist()
         move_msg.linear = Vector3(x=0.0, y=0.0, z=0.0)
-        move_msg.angular = Vector3(x=0.0, y=0.0, z=0.5*rotation_dir)
+        move_msg.angular = Vector3(x=0.0, y=0.0, z=0.5*rotation_dir) # rad/s
 
 
         # Publish the message until the correct rotation is reached (accounting for some eps error)

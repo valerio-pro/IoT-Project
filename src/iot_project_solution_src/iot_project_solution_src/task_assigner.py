@@ -24,7 +24,6 @@ from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry
 from math_utils import get_yaw, compute_closest_drone_to_target, compute_closest_drone_to_centroid, compute_closest_target_to_drone, rotate
 
-
 class TaskAssigner(Node):
 
     def __init__(self):
@@ -49,6 +48,7 @@ class TaskAssigner(Node):
 
         self.drone_assignment: dict[int, list[Point]] = {} # contains pairs drone_id: list_of_assigned_targets
         self.centroids_targets_assignment: dict = {} # contains pairs cluster_centroid: list_of_targets_belonging_to_that_centroid
+        self.target_time_assignemt: dict[tuple, float] = {} # contains pairs target: remaining_time_of_target
 
         self.task_announcer = self.create_client(
             TaskAssignment,
@@ -177,6 +177,7 @@ class TaskAssigner(Node):
             msg.pose.pose.orientation.z,
             msg.pose.pose.orientation.w
         )
+
 
     # Listen for targets' remaining time until expiration.
     # Time is stored in seconds inside self.targets_time_left.

@@ -41,7 +41,7 @@ class TaskAssigner(Node):
         self.idle: list[bool] = []
 
         self.sim_time = 0
-        self.targets_time_left: list = []
+        self.targets_time_left: list[float] = []
 
         self.position: list[Point] = [] # index "i" contains the coordinates (a Point) of the drone with id "i"
         self.yaw: list = []
@@ -49,6 +49,7 @@ class TaskAssigner(Node):
 
         self.drone_assignment: dict[int, list[Point]] = {} # contains pairs drone_id: list_of_assigned_targets
         self.centroids_targets_assignment: dict = {} # contains pairs cluster_centroid: list_of_targets_belonging_to_that_centroid
+        self.target_time_assignemt: dict[tuple, float] = {} # contains pairs target: remaining_time_of_target
 
         self.task_announcer = self.create_client(
             TaskAssignment,
@@ -127,6 +128,12 @@ class TaskAssigner(Node):
         self.position = [None]*task.no_drones
         self.yaw = [None]*task.no_drones
 
+        print()
+        print()
+        print(self.targets[0])
+        print()
+        print()
+
         # Wait for all starting positions to be initialized.
         # We need to wait here since both the trivial and non-trivial case exploit the 
         # drones' starting positions
@@ -178,10 +185,11 @@ class TaskAssigner(Node):
             msg.pose.pose.orientation.w
         )
 
-    # Listen for targets' remaining time until expiration
+    # Listen for targets' remaining time until expiration.
+    # Time is stored in seconds inside self.targets_time_left.
+    # Index "i" of the list self.targets_time_left contains the remaining time of the target with id equal to "i"
     def store_targets_time_left(self, msg: TargetsTimeLeft):
         self.targets_time_left = [float(t/(10**9)) for t in msg.times]
-        print(self.targets_time_left)
 
 
     # This method starts on a separate thread an ever-going patrolling task, it does that
