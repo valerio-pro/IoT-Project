@@ -27,7 +27,7 @@ def compute_closest_drone_to_centroid(centroid: tuple, available_drones: dict[in
     return best_drone
 
 
-def compute_closest_target_to_drone(drone_position: Point, targets: list[Point]) -> tuple:
+def compute_closest_target_to_drone(drone_position: Point, targets: list[Point]) -> tuple[int, Point]:
     best_distance = math.inf
     best_target = None
     best_idx = None

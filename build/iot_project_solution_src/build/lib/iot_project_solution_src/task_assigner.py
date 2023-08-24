@@ -24,7 +24,6 @@ from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry
 from math_utils import get_yaw, compute_closest_drone_to_target, compute_closest_drone_to_centroid, compute_closest_target_to_drone, rotate
 
-
 class TaskAssigner(Node):
 
     def __init__(self):
@@ -41,7 +40,7 @@ class TaskAssigner(Node):
         self.idle: list[bool] = []
 
         self.sim_time = 0
-        self.targets_time_left: list[float] = []
+        self.targets_time_left: list[float] = [] # index "i" contains the remaining time of the target with id equal to "i+1" (targets' ids start from 1 in their names of the simulation)
 
         self.position: list[Point] = [] # index "i" contains the coordinates (a Point) of the drone with id "i"
         self.yaw: list = []
@@ -49,7 +48,13 @@ class TaskAssigner(Node):
 
         self.drone_assignment: dict[int, list[Point]] = {} # contains pairs drone_id: list_of_assigned_targets
         self.centroids_targets_assignment: dict = {} # contains pairs cluster_centroid: list_of_targets_belonging_to_that_centroid
-        self.target_time_assignemt: dict[tuple, float] = {} # contains pairs target: remaining_time_of_target
+
+        # Contains pairs target: target_idx where target_idx is the index of the target in the list self.targets_time_left. The target is stored as a tuple (not Point).
+        # Needed to obtain the index used to retrieve the time from "self.targets_time_left" when targets will be grouped in clusters and assigned 
+        # to drones (order can't be efficiently deducted anymore from "self.targets").
+        # E.g. self.targets_time_left[self.target_idx_assignment[target_in_tuple_form]]
+        # Not pretty but useful
+        self.target_idx_assignment: dict[tuple, int] = {}
 
         self.task_announcer = self.create_client(
             TaskAssignment,
@@ -122,17 +127,15 @@ class TaskAssigner(Node):
         self.targets = task.target_positions
         self.thresholds = task.target_thresholds
 
+        self.target_idx_assignment = {(target.x, target.y, target.z): idx for idx, target in enumerate(self.targets)}
+        print(self.target_idx_assignment)
+        print(self.targets_time_left)
+
         self.current_tasks = [None]*task.no_drones
         self.idle = [True]*task.no_drones
 
         self.position = [None]*task.no_drones
         self.yaw = [None]*task.no_drones
-
-        print()
-        print()
-        print(self.targets[0])
-        print()
-        print()
 
         # Wait for all starting positions to be initialized.
         # We need to wait here since both the trivial and non-trivial case exploit the 
@@ -184,6 +187,7 @@ class TaskAssigner(Node):
             msg.pose.pose.orientation.z,
             msg.pose.pose.orientation.w
         )
+
 
     # Listen for targets' remaining time until expiration.
     # Time is stored in seconds inside self.targets_time_left.
