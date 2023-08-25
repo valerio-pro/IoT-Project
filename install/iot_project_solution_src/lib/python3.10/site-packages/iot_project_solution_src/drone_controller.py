@@ -21,6 +21,10 @@ from iot_project_solution_src.math_utils import *
 # before doing any further movement.
 DRONE_MIN_ALTITUDE_TO_PERFORM_MOVEMENT = 1
 
+FLY_UP_VELOCITY = 1.0
+ANGULAR_VELOCITY = 0.5
+
+
 
 class DroneController(Node):
 
@@ -101,7 +105,7 @@ class DroneController(Node):
 
         # Instantiate the move_up message
         move_up = Twist()
-        move_up.linear = Vector3(x=0.0, y=0.0, z=1.0)
+        move_up.linear = Vector3(x=0.0, y=0.0, z=FLY_UP_VELOCITY)
         move_up.angular = Vector3(x=0.0, y=0.0, z=0.0)
 
         self.cmd_vel_topic.publish(move_up)
@@ -141,7 +145,7 @@ class DroneController(Node):
         # Prepare the cmd_vel message
         move_msg = Twist()
         move_msg.linear = Vector3(x=0.0, y=0.0, z=0.0)
-        move_msg.angular = Vector3(x=0.0, y=0.0, z=0.5*rotation_dir) # rad/s
+        move_msg.angular = Vector3(x=0.0, y=0.0, z=ANGULAR_VELOCITY*rotation_dir) # rad/s
 
 
         # Publish the message until the correct rotation is reached (accounting for some eps error)

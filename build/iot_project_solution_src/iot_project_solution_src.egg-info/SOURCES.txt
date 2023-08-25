@@ -10,6 +10,7 @@ setup.py
 ../../build/iot_project_solution_src/iot_project_solution_src.egg-info/zip-safe
 iot_project_solution_src/__init__.py
 iot_project_solution_src/drone_controller.py
+iot_project_solution_src/drones_utils.py
 iot_project_solution_src/math_utils.py
 iot_project_solution_src/task_assigner.py
 launch/launch.py
