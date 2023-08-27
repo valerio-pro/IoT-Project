@@ -16,7 +16,7 @@ from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry
 from math_utils import get_yaw
 
-from .drone_controller import ANGULAR_VELOCITY, FLY_UP_VELOCITY
+from .drone_controller import ANGULAR_VELOCITY, FLY_UP_VELOCITY, DRONE_MIN_ALTITUDE_TO_PERFORM_MOVEMENT
 from .drones_utils import all_positions_initialized, clustering, tsp, trivial_case
 
 class TaskAssigner(Node):
@@ -165,6 +165,7 @@ class TaskAssigner(Node):
     # Index "i" of the list self.targets_time_left contains the remaining time of the target with id equal to "i"
     def store_targets_time_left(self, msg: TargetsTimeLeft):
         self.targets_time_left = [float(t/(10**9)) for t in msg.times]
+        print(self.targets_time_left)
 
 
     # This method starts on a separate thread an ever-going patrolling task, it does that
@@ -195,6 +196,8 @@ class TaskAssigner(Node):
     #      visit of each target can be read from the array last_visits in the service message.
     #      The simulation time is already stored in self.sim_time for you to use in case
     #      Times are all in nanoseconds.
+    #
+    # Executed every time all targets in "targets_to_patrol" have been visited (i.e. task completed)
     def submit_task(self, drone_id: int, targets_to_patrol: list[Point] = []):
 
         self.get_logger().info("Submitting task for drone X3_%s" % drone_id)
@@ -205,7 +208,7 @@ class TaskAssigner(Node):
         self.idle[drone_id] = False
 
         if not targets_to_patrol:
-            targets_to_patrol = self.drone_assignment[drone_id]
+            targets_to_patrol = []
 
         patrol_task =  PatrollingAction.Goal()
         patrol_task.targets = targets_to_patrol

@@ -54,19 +54,6 @@ def trivial_case(position: list[Point], targets: list[Point], no_drones: int) ->
     return drone_assignment
 
 
-# Executed when no_drones >= len(targets)
-def trivial_case_2(targets: list[Point], no_drones: int) -> dict[int, list[Point]]:
-    drone_assignment: dict[int, list[Point]] = {}
-    curr_drone_id: int = 0
-    for target in targets:
-        drone_assignment[curr_drone_id] = [target]
-        curr_drone_id += 1
-    for _ in range(no_drones-len(targets)):
-        drone_assignment[curr_drone_id] = []
-        curr_drone_id += 1
-    return drone_assignment
-
-
 # Used to compute the closest drone to each cluster center
 def assign_drones_to_clusters(position: list, centroids_targets_assignment: dict, no_drones: int) -> dict[int, list[Point]]:
     available_drones: dict[int, Point] = {d: position[d] for d in range(no_drones)}
