@@ -97,7 +97,7 @@ class DroneController(Node):
         return result
 
 
-    def fly_to_altitude(self, altitude = DRONE_MIN_ALTITUDE_TO_PERFORM_MOVEMENT):
+    def fly_to_altitude(self, altitude: int = DRONE_MIN_ALTITUDE_TO_PERFORM_MOVEMENT):
 
         # Skip movement if desiderd altitude is already reached
         if (self.position.z >= altitude):
@@ -133,7 +133,7 @@ class DroneController(Node):
         # We compute the angle between the current target position and the target
         # position here
 
-        start_position = (self.position.x, self.position.y)
+        start_position: tuple[float, float] = (self.position.x, self.position.y)
         target_angle = angle_between_points(start_position, target)
         angle_to_rotate = target_angle - self.yaw
 

@@ -37,8 +37,10 @@ class TaskAssigner(Node):
         self.wind: list[float] = []
 
         self.sim_time: int = 0 # contains simulation time in nanoseconds
-        self.targets_time_left: list[float] = [] # index "i" contains the remaining time of the target with id equal to "i+1" (targets' ids start from 1 in their names of the simulation)
 
+        self.targets_time_left: list[float] = [] # index "i" contains the remaining time of the target with id equal to "i+1" (targets' ids start from 1 in their names of the simulation)
+        self.initial_targets_time: dict[tuple[float, float, float], float] = {} # contains pairs target_in_tuple_form: elapsed_time_since_target_was_last_visited
+        
         self.position: list[Point] = [] # index "i" contains the coordinates (a Point) of the drone with id "i"
         self.yaw: list = []
         self.odometry_topic: list = []
@@ -52,9 +54,6 @@ class TaskAssigner(Node):
         # E.g. self.targets_time_left[self.target_idx_assignment[target_in_tuple_form]]
         # Not pretty but useful
         self.target_idx_assignment: dict[tuple[float, float, float], int] = {}
-
-        self.time_since_last_visit: dict[tuple[float, float, float], float] = {} # contains pairs target_in_tuple_form: elapsed_time_since_target_was_last_visited
-        self.last_recorded_visit: dict[tuple[float, float, float], float] = {} # contains pairs target_in_tuple_form: time_instant_of_simulation_when_target_was_last_visited
 
         self.task_announcer = self.create_client(
             TaskAssignment,
@@ -102,13 +101,6 @@ class TaskAssigner(Node):
 
         task: TaskAssignment.Response = assignment_future.result()
 
-        self.task = task
-        self.targets = task.target_positions
-        self.thresholds = task.target_thresholds
-
-        self.time_since_last_visit = {(target.x, target.y, target.z): 0.0 for target in self.targets}
-        self.last_recorded_visit = {(target.x, target.y, target.z): 0.0 for target in self.targets}
-
         # Subscribe Task Assigner to the Odometry topic of each drone 
         for d in range(task.no_drones):
             self.odometry_topic.append(
@@ -130,7 +122,13 @@ class TaskAssigner(Node):
                 )
             )
 
+        self.task = task
+        self.targets = task.target_positions
+        self.thresholds = task.target_thresholds
+
+        # Storing here useful information about targets
         self.target_idx_assignment = {(target.x, target.y, target.z): idx for idx, target in enumerate(self.targets)}
+        self.initial_targets_time = {(target.x, target.y, target.z): threshold for target, threshold in zip(self.targets, self.thresholds)}
 
         self.current_tasks = [None]*task.no_drones
         self.idle = [True]*task.no_drones
@@ -256,24 +254,12 @@ class TaskAssigner(Node):
     def store_sim_time_callback(self, msg: Clock):
         self.sim_time = msg.clock.sec * 10**9 + msg.clock.nanosec
 
-        # Store here when each target was last visited by some drone (in seconds). It is done here because "store_sim_time_callback" is executed periodically
-        # and the updated data is always needed
-        for target in self.targets:
-            target_tuple: tuple[float, float, float] = (target.x, target.y, target.z)
-            self.time_since_last_visit[target_tuple] = round(float(self.sim_time/(10**9)) - self.last_recorded_visit[target_tuple], 3)
 
-        for drone_id in range(self.no_drones):
-            drone_position_tuple: tuple[float, float, float] = (self.position[drone_id].x, self.position[drone_id].y, self.position[drone_id].z) 
-            for target in self.targets:
-                target_tuple: tuple[float, float, float] = (target.x, target.y, target.z)
-                #self.time_since_last_visit[target] = round(float(self.sim_time/(10**9)) - self.last_recorded_visit[target_tuple], 3)
-                if point_distance(drone_position_tuple, target_tuple) < TARGET_EPS:
-                    self.time_since_last_visit[target_tuple] = 0.0
-                    self.last_recorded_visit[target_tuple] = round(float(self.sim_time/(10**9)), 3)
-                
-        if self.no_drones > 0:
-            print(f'LAST RECORDED VISIT: {self.last_recorded_visit[(5.0, 5.0, 7.0)]}')
-            print(f'TIME: {self.time_since_last_visit[(5.0, 5.0, 7.0)]}')
+    # Retrieve from here when each target was last visited by some drone (in seconds).
+    # It works as it is even in case of violations
+    def get_time_since_last_visit_to_target(self, target: Point) -> float:
+        target_tuple: tuple[float, float, float] = (target.x, target.y, target.z)
+        return round(self.initial_targets_time[target_tuple] - self.targets_time_left[self.target_idx_assignment[(target.x, target.y, target.z)]], 3)
 
 
 def main():
