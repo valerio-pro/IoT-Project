@@ -14,7 +14,7 @@ from iot_project_solution_interfaces.action import PatrollingAction
 from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry
 
-from math_utils import get_yaw, point_distance
+from math_utils import get_yaw
 from .drone_controller import ANGULAR_VELOCITY, FLY_UP_VELOCITY, DRONE_MIN_ALTITUDE_TO_PERFORM_MOVEMENT
 from .drones_utils import all_positions_initialized, clustering, tsp, trivial_case
 
