@@ -14,9 +14,11 @@ from iot_project_solution_interfaces.action import PatrollingAction
 from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry
 
-from math_utils import get_yaw
+from math_utils import get_yaw, point_distance
 from .drone_controller import ANGULAR_VELOCITY, FLY_UP_VELOCITY, DRONE_MIN_ALTITUDE_TO_PERFORM_MOVEMENT
 from .drones_utils import all_positions_initialized, clustering, tsp, trivial_case
+
+TARGET_EPS: float = 0.8
 
 class TaskAssigner(Node):
 
@@ -32,8 +34,9 @@ class TaskAssigner(Node):
         self.action_servers: list = []
         self.current_tasks: list =  []
         self.idle: list[bool] = []
+        self.wind: list[float] = []
 
-        self.sim_time = 0
+        self.sim_time: int = 0 # contains simulation time in nanoseconds
         self.targets_time_left: list[float] = [] # index "i" contains the remaining time of the target with id equal to "i+1" (targets' ids start from 1 in their names of the simulation)
 
         self.position: list[Point] = [] # index "i" contains the coordinates (a Point) of the drone with id "i"
@@ -43,12 +46,15 @@ class TaskAssigner(Node):
         self.drone_assignment: dict[int, list[Point]] = {} # contains pairs drone_id: list_of_assigned_targets
         self.centroids_targets_assignment: dict = {} # contains pairs cluster_centroid: list_of_targets_belonging_to_that_centroid
 
-        # Contains pairs target: target_idx where target_idx is the index of the target in the list self.targets_time_left. The target is stored as a tuple (not Point).
+        # Contains pairs target_in_tuple_form: target_idx where target_idx is the index of the target in the list self.targets_time_left. The target is stored as a tuple (not Point).
         # Needed to obtain the index used to retrieve the time from "self.targets_time_left" when targets will be grouped in clusters and assigned 
         # to drones (order can't be efficiently deducted anymore from "self.targets").
         # E.g. self.targets_time_left[self.target_idx_assignment[target_in_tuple_form]]
         # Not pretty but useful
-        self.target_idx_assignment: dict[tuple, int] = {}
+        self.target_idx_assignment: dict[tuple[float, float, float], int] = {}
+
+        self.time_since_last_visit: dict[tuple[float, float, float], float] = {} # contains pairs target_in_tuple_form: elapsed_time_since_target_was_last_visited
+        self.last_recorded_visit: dict[tuple[float, float, float], float] = {} # contains pairs target_in_tuple_form: time_instant_of_simulation_when_target_was_last_visited
 
         self.task_announcer = self.create_client(
             TaskAssignment,
@@ -96,6 +102,13 @@ class TaskAssigner(Node):
 
         task: TaskAssignment.Response = assignment_future.result()
 
+        self.task = task
+        self.targets = task.target_positions
+        self.thresholds = task.target_thresholds
+
+        self.time_since_last_visit = {(target.x, target.y, target.z): 0.0 for target in self.targets}
+        self.last_recorded_visit = {(target.x, target.y, target.z): 0.0 for target in self.targets}
+
         # Subscribe Task Assigner to the Odometry topic of each drone 
         for d in range(task.no_drones):
             self.odometry_topic.append(
@@ -117,14 +130,11 @@ class TaskAssigner(Node):
                 )
             )
 
-        self.task = task
-        self.targets = task.target_positions
-        self.thresholds = task.target_thresholds
-
         self.target_idx_assignment = {(target.x, target.y, target.z): idx for idx, target in enumerate(self.targets)}
 
         self.current_tasks = [None]*task.no_drones
         self.idle = [True]*task.no_drones
+        self.wind = [task.wind_vector.x, task.wind_vector.y, task.wind_vector.z]
 
         self.position = [None]*task.no_drones
         self.yaw = [None]*task.no_drones
@@ -222,7 +232,7 @@ class TaskAssigner(Node):
 
     # Callback used to verify if the action has been accepted.
     # If it did, prepares a callback for when the action gets completed
-    def patrol_submitted_callback(self, future, drone_id):
+    def patrol_submitted_callback(self, future, drone_id: int):
 
         goal_handle = future.result()
         
@@ -237,14 +247,33 @@ class TaskAssigner(Node):
 
 
     # Callback used to update the idle state of the drone when the action ends
-    def patrol_completed_callback(self, future, drone_id):
+    def patrol_completed_callback(self, future, drone_id: int):
         self.get_logger().info("Patrolling action for drone X3_%s has been completed. Drone is going idle" % drone_id)
         self.idle[drone_id] = True
 
 
     # Callback used to store simulation time
-    def store_sim_time_callback(self, msg):
-        self.clock = msg.clock.sec * 10**9 + msg.clock.nanosec
+    def store_sim_time_callback(self, msg: Clock):
+        self.sim_time = msg.clock.sec * 10**9 + msg.clock.nanosec
+
+        # Store here when each target was last visited by some drone (in seconds). It is done here because "store_sim_time_callback" is executed periodically
+        # and the updated data is always needed
+        for target in self.targets:
+            target_tuple: tuple[float, float, float] = (target.x, target.y, target.z)
+            self.time_since_last_visit[target_tuple] = round(float(self.sim_time/(10**9)) - self.last_recorded_visit[target_tuple], 3)
+
+        for drone_id in range(self.no_drones):
+            drone_position_tuple: tuple[float, float, float] = (self.position[drone_id].x, self.position[drone_id].y, self.position[drone_id].z) 
+            for target in self.targets:
+                target_tuple: tuple[float, float, float] = (target.x, target.y, target.z)
+                #self.time_since_last_visit[target] = round(float(self.sim_time/(10**9)) - self.last_recorded_visit[target_tuple], 3)
+                if point_distance(drone_position_tuple, target_tuple) < TARGET_EPS:
+                    self.time_since_last_visit[target_tuple] = 0.0
+                    self.last_recorded_visit[target_tuple] = round(float(self.sim_time/(10**9)), 3)
+                
+        # if self.no_drones > 0:
+        #     print(f'LAST RECORDED VISIT: {self.last_recorded_visit[(5.0, 5.0, 7.0)]}')
+        #     print(f'TIME: {self.time_since_last_visit[(5.0, 5.0, 7.0)]}')
 
 
 def main():

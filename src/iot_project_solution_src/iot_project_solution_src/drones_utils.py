@@ -6,8 +6,8 @@ from mlrose import TravellingSales, TSPOpt, genetic_alg
 
 import numpy as np
 from geometry_msgs.msg import Point
-from math import inf
-from math_utils import point_distance
+from math import inf, sqrt
+from math_utils import point_distance, angle_between_points, move_vector
 
 # Perform Clustering on the given "targets" list. The number of clusters is equal to the number of drones
 def clustering(no_drones: int, targets: list[Point], position: list[Point], n_init: int = 10) -> dict[int, list[Point]]:
@@ -67,11 +67,11 @@ def assign_drones_to_clusters(position: list, centroids_targets_assignment: dict
 
 # Used for trivial_case method
 def compute_closest_drone_to_target(target: Point, available_drones: dict[int, Point]) -> int:
-    target_tuple: tuple = (target.x, target.y, target.z)
+    target_tuple: tuple[float, float, float] = (target.x, target.y, target.z)
     best_distance = inf
     best_drone = None
     for drone, drone_position in available_drones.items():
-        drone_tuple: tuple = (drone_position.x, drone_position.y, drone_position.z)
+        drone_tuple: tuple[float, float, float] = (drone_position.x, drone_position.y, drone_position.z)
         curr_distance = point_distance(target_tuple, drone_tuple)
         if curr_distance < best_distance:
              best_distance = curr_distance
@@ -83,7 +83,7 @@ def compute_closest_drone_to_centroid(centroid: tuple, available_drones: dict[in
     best_distance = inf
     best_drone = None
     for drone, drone_position in available_drones.items():
-        drone_tuple: tuple = (drone_position.x, drone_position.y, drone_position.z)
+        drone_tuple: tuple[float, float, float] = (drone_position.x, drone_position.y, drone_position.z)
         curr_distance = point_distance(centroid, drone_tuple)
         if curr_distance < best_distance:
              best_distance = curr_distance
@@ -95,9 +95,9 @@ def compute_closest_target_to_drone(drone_position: Point, targets: list[Point])
     best_distance = inf
     best_target = None
     best_idx = None
-    drone_position_tuple: tuple = (drone_position.x, drone_position.y, drone_position.z)
+    drone_position_tuple: tuple[float, float, float] = (drone_position.x, drone_position.y, drone_position.z)
     for idx, target in enumerate(targets):
-        target_tuple: tuple = (target.x, target.y, target.z)
+        target_tuple: tuple[float, float, float] = (target.x, target.y, target.z)
         curr_distance = point_distance(drone_position_tuple, target_tuple)
         if curr_distance < best_distance:
             best_distance = curr_distance
@@ -111,6 +111,23 @@ def all_positions_initialized(position: list[Point]) -> bool:
         if not pos:
             return False
     return True
+
+
+def compute_drone_travel_estimate(drone_position: Point, drone_yaw: float, drone_angular_velocity: float, drone_linear_velocity_x: float, drone_linear_velocity_z: float, target: Point) -> float:
+    drone_position_tuple: tuple[float, float, float] = (drone_position.x, drone_position.y, drone_position.z)
+    target_tuple: tuple[float, float, float] = (target.x, target.y, target.z)
+    target_angle: float = angle_between_points(drone_position_tuple, target_tuple)
+    angle_to_rotate: float = target_angle - drone_yaw
+    t_rotation: float = angle_to_rotate/drone_angular_velocity
+    velocity_magnitude: float = sqrt(drone_linear_velocity_x**2 + drone_linear_velocity_z**2)
+    if velocity_magnitude == 0.:
+            return 0.
+    t_flight: float = point_distance(drone_position_tuple, target_tuple)/velocity_magnitude
+    return t_flight + t_rotation
+
+
+def compute_average_target_to_multitarget_distance(target: Point, all_targets: list[Point]) -> float:
+    return 0 if not all_targets else sum([point_distance((target.x, target.y, target.z), (other_target.x, other_target.y, other_target.z)) for other_target in all_targets])/len(all_targets)
 
 
 # Perform a "clockwise" rotation of the input list of "k" positions

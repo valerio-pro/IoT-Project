@@ -19,10 +19,10 @@ from iot_project_solution_src.math_utils import *
 # This movement is necessary because rotors behave differently when close
 # to the ground, so it is wise to always lift the drone up a little bit
 # before doing any further movement.
-DRONE_MIN_ALTITUDE_TO_PERFORM_MOVEMENT = 1
+DRONE_MIN_ALTITUDE_TO_PERFORM_MOVEMENT: int = 1
 
-FLY_UP_VELOCITY = 1.0
-ANGULAR_VELOCITY = 0.5
+FLY_UP_VELOCITY: float = 1.0
+ANGULAR_VELOCITY: float = 0.5
 
 
 
@@ -97,7 +97,7 @@ class DroneController(Node):
         return result
 
 
-    def fly_to_altitude(self, altitude = DRONE_MIN_ALTITUDE_TO_PERFORM_MOVEMENT):
+    def fly_to_altitude(self, altitude: int = DRONE_MIN_ALTITUDE_TO_PERFORM_MOVEMENT):
 
         # Skip movement if desiderd altitude is already reached
         if (self.position.z >= altitude):
@@ -126,14 +126,14 @@ class DroneController(Node):
         self.cmd_vel_topic.publish(stop_mov)
 
 
-    def rotate_to_target(self, target: Point, eps = 0.1):
+    def rotate_to_target(self, target: Point, eps: float = 0.1):
 
-        target = (target.x, target.y, target.z)
+        target: tuple[float, float, float] = (target.x, target.y, target.z)
 
         # We compute the angle between the current target position and the target
         # position here
 
-        start_position = (self.position.x, self.position.y)
+        start_position: tuple[float, float] = (self.position.x, self.position.y)
         target_angle = angle_between_points(start_position, target)
         angle_to_rotate = target_angle - self.yaw
 
@@ -167,10 +167,10 @@ class DroneController(Node):
         self.cmd_vel_topic.publish(stop_msg)
 
 
-    def move_to_target(self, target: Point, eps = 0.5, angle_eps = 0.05):
+    def move_to_target(self, target: Point, eps: float = 0.5, angle_eps: float = 0.05):
 
-        current_position = (self.position.x, self.position.y, self.position.z)
-        objective_point = (target.x, target.y, target.z)
+        current_position: tuple[float, float, float] = (self.position.x, self.position.y, self.position.z)
+        objective_point: tuple[float, float, float] = (target.x, target.y, target.z)
 
         while point_distance(current_position, objective_point) > eps:
 
