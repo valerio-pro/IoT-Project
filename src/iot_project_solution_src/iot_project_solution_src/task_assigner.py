@@ -18,8 +18,6 @@ from math_utils import get_yaw
 from .drone_controller import ANGULAR_VELOCITY, FLY_UP_VELOCITY, DRONE_MIN_ALTITUDE_TO_PERFORM_MOVEMENT
 from .drones_utils import all_positions_initialized, clustering, tsp, trivial_case
 
-TARGET_EPS: float = 0.8
-
 class TaskAssigner(Node):
 
     def __init__(self):
@@ -149,7 +147,8 @@ class TaskAssigner(Node):
         # We are not in the trivial case
         else:
             self.drone_assignment = clustering(no_drones=task.no_drones, targets=self.targets, position=self.position, n_init=10)
-            self.drone_assignment = tsp(drone_assignment=self.drone_assignment, no_drones=task.no_drones, position=self.position)
+            self.drone_assignment = tsp(drone_assignment=self.drone_assignment, no_drones=task.no_drones, position=self.position,
+                                        mutation_prob=0.1, max_attempts=10, max_iters=100)
                 
         # Initialize number of drones
         self.no_drones = task.no_drones
@@ -253,13 +252,6 @@ class TaskAssigner(Node):
     def patrol_completed_callback(self, future, drone_id: int):
         self.get_logger().info("Patrolling action for drone X3_%s has been completed. Drone is going idle" % drone_id)
         self.idle[drone_id] = True
-
-
-    # Retrieve from here when each target was last visited by some drone (in seconds).
-    # It works as it is even in case of violations
-    def get_time_since_last_visit_to_target(self, target: Point) -> float:
-        target_tuple: tuple[float, float, float] = (target.x, target.y, target.z)
-        return round(self.initial_targets_time[target_tuple] - self.targets_time_left[self.target_idx_assignment[(target.x, target.y, target.z)]], 3)
 
 
 def main():
