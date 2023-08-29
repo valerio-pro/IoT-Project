@@ -14,11 +14,10 @@ from iot_project_solution_interfaces.action import PatrollingAction
 from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry
 
-from math_utils import get_yaw, point_distance
-from .drone_controller import ANGULAR_VELOCITY, FLY_UP_VELOCITY, DRONE_MIN_ALTITUDE_TO_PERFORM_MOVEMENT
+from math_utils import get_yaw
 from .drones_utils import all_positions_initialized, clustering, tsp, trivial_case
 
-TARGET_EPS: float = 0.8
+WIND_VECTOR: list[float] = [0.0, 0.0, 0.0]
 
 class TaskAssigner(Node):
 
@@ -133,6 +132,7 @@ class TaskAssigner(Node):
         self.current_tasks = [None]*task.no_drones
         self.idle = [True]*task.no_drones
         self.wind = [task.wind_vector.x, task.wind_vector.y, task.wind_vector.z]
+        WIND_VECTOR = self.wind
 
         self.position = [None]*task.no_drones
         self.yaw = [None]*task.no_drones
@@ -149,7 +149,8 @@ class TaskAssigner(Node):
         # We are not in the trivial case
         else:
             self.drone_assignment = clustering(no_drones=task.no_drones, targets=self.targets, position=self.position, n_init=10)
-            self.drone_assignment = tsp(drone_assignment=self.drone_assignment, no_drones=task.no_drones, position=self.position)
+            self.drone_assignment = tsp(drone_assignment=self.drone_assignment, no_drones=task.no_drones, position=self.position,
+                                        mutation_prob=0.1, max_attempts=1, max_iters=50)
                 
         # Initialize number of drones
         self.no_drones = task.no_drones
@@ -173,6 +174,11 @@ class TaskAssigner(Node):
     # When there is a violation the values in the list start going below 0
     def store_targets_time_left(self, msg: TargetsTimeLeft):
         self.targets_time_left = [float(t/(10**9)) for t in msg.times]
+
+
+    # Callback used to store simulation time
+    def store_sim_time_callback(self, msg: Clock):
+        self.sim_time = msg.clock.sec * 10**9 + msg.clock.nanosec
 
 
     # This method starts on a separate thread an ever-going patrolling task, it does that
@@ -248,18 +254,6 @@ class TaskAssigner(Node):
     def patrol_completed_callback(self, future, drone_id: int):
         self.get_logger().info("Patrolling action for drone X3_%s has been completed. Drone is going idle" % drone_id)
         self.idle[drone_id] = True
-
-
-    # Callback used to store simulation time
-    def store_sim_time_callback(self, msg: Clock):
-        self.sim_time = msg.clock.sec * 10**9 + msg.clock.nanosec
-
-
-    # Retrieve from here when each target was last visited by some drone (in seconds).
-    # It works as it is even in case of violations
-    def get_time_since_last_visit_to_target(self, target: Point) -> float:
-        target_tuple: tuple[float, float, float] = (target.x, target.y, target.z)
-        return round(self.initial_targets_time[target_tuple] - self.targets_time_left[self.target_idx_assignment[(target.x, target.y, target.z)]], 3)
 
 
 def main():

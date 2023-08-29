@@ -9,6 +9,7 @@ from rclpy.action.server import ServerGoalHandle
 from geometry_msgs.msg import Point, Vector3, Twist
 from nav_msgs.msg import Odometry
 from iot_project_solution_interfaces.action import PatrollingAction
+from iot_project_interfaces.srv import TaskAssignment
 
 from iot_project_solution_src.math_utils import *
 
@@ -24,16 +25,15 @@ DRONE_MIN_ALTITUDE_TO_PERFORM_MOVEMENT: int = 1
 FLY_UP_VELOCITY: float = 1.0
 ANGULAR_VELOCITY: float = 0.5
 
-
-
 class DroneController(Node):
 
     def __init__(self):
 
         super().__init__("drone_controller")
 
-        self.position = Point(x=0.0, y=0.0, z=0.0)
+        self.position: Point = Point(x=0.0, y=0.0, z=0.0)
         self.yaw = 0
+        self.wind: list[float] = [0.0, 0.0, 0.0]
 
         self.cmd_vel_topic = self.create_publisher(
             Twist,
@@ -53,6 +53,11 @@ class DroneController(Node):
             PatrollingAction,
             'patrol_targets',
             self.patrol_action_callback
+        )
+
+        self.task_announcer = self.create_client(
+            TaskAssignment,
+            '/task_assigner/get_task'
         )
 
 
@@ -105,7 +110,7 @@ class DroneController(Node):
 
         # Instantiate the move_up message
         move_up = Twist()
-        move_up.linear = Vector3(x=0.0, y=0.0, z=FLY_UP_VELOCITY)
+        move_up.linear = Vector3(x=-self.wind[0], y=-self.wind[1], z=FLY_UP_VELOCITY)
         move_up.angular = Vector3(x=0.0, y=0.0, z=0.0)
 
         self.cmd_vel_topic.publish(move_up)
@@ -144,7 +149,7 @@ class DroneController(Node):
         
         # Prepare the cmd_vel message
         move_msg = Twist()
-        move_msg.linear = Vector3(x=0.0, y=0.0, z=0.0)
+        move_msg.linear = Vector3(x=-self.wind[0], y=-self.wind[1], z=0.0)
         move_msg.angular = Vector3(x=0.0, y=0.0, z=ANGULAR_VELOCITY*rotation_dir) # rad/s
 
 
@@ -203,6 +208,23 @@ class DroneController(Node):
         goal_handle.publish_feedback(feedback)
 
 
+    # Function used to wait for the current task. After receiving the task, it submits
+    # to all the drone topics
+    def get_task_and_subscribe_to_drones(self):
+
+        while not self.task_announcer.wait_for_service(timeout_sec = 1.0):
+            time.sleep(0.5)
+
+        assignment_future = self.task_announcer.call_async(TaskAssignment.Request())
+        assignment_future.add_done_callback(self.initialize_wind)
+
+    
+    def initialize_wind(self, assignment_future):
+
+        task: TaskAssignment.Response = assignment_future.result()
+        self.wind = [task.wind_vector.x, task.wind_vector.y, task.wind_vector.z]
+
+
 def main():
 
     rclpy.init()
@@ -211,6 +233,7 @@ def main():
     drone_controller = DroneController()
 
     executor.add_node(drone_controller)
+    drone_controller.get_task_and_subscribe_to_drones()
     executor.spin()
 
     executor.shutdown()

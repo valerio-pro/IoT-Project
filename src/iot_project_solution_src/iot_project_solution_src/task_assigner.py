@@ -15,7 +15,6 @@ from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry
 
 from math_utils import get_yaw
-from .drone_controller import ANGULAR_VELOCITY, FLY_UP_VELOCITY, DRONE_MIN_ALTITUDE_TO_PERFORM_MOVEMENT
 from .drones_utils import all_positions_initialized, clustering, tsp, trivial_case
 
 class TaskAssigner(Node):
@@ -148,7 +147,7 @@ class TaskAssigner(Node):
         else:
             self.drone_assignment = clustering(no_drones=task.no_drones, targets=self.targets, position=self.position, n_init=10)
             self.drone_assignment = tsp(drone_assignment=self.drone_assignment, no_drones=task.no_drones, position=self.position,
-                                        mutation_prob=0.1, max_attempts=10, max_iters=100)
+                                        mutation_prob=0.1, max_attempts=1, max_iters=50)
                 
         # Initialize number of drones
         self.no_drones = task.no_drones
