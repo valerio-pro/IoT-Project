@@ -23,7 +23,7 @@ from iot_project_solution_src.math_utils import *
 DRONE_MIN_ALTITUDE_TO_PERFORM_MOVEMENT: int = 1
 
 FLY_UP_VELOCITY: float = 1.0
-ANGULAR_VELOCITY: float = 0.5
+ANGULAR_VELOCITY: float = 1.0
 
 class DroneController(Node):
 
@@ -110,7 +110,7 @@ class DroneController(Node):
 
         # Instantiate the move_up message
         move_up = Twist()
-        move_up.linear = Vector3(x=-self.wind[0], y=-self.wind[1], z=FLY_UP_VELOCITY)
+        move_up.linear = Vector3(x=0.0, y=0.0, z=FLY_UP_VELOCITY)
         move_up.angular = Vector3(x=0.0, y=0.0, z=0.0)
 
         self.cmd_vel_topic.publish(move_up)
@@ -131,13 +131,15 @@ class DroneController(Node):
         self.cmd_vel_topic.publish(stop_mov)
 
 
-    def rotate_to_target(self, target: Point, eps: float = 0.1):
+    # The "eps" error was changed from 0.1 to 0.3, in most cases there is no need to be so precise since
+    # there are already slight adjustments in the angle during "move_to_target". Better to start
+    # moving quickly towards the target than being so precise in adjusting the angle 
+    def rotate_to_target(self, target: Point, eps: float = 0.3):
 
         target: tuple[float, float, float] = (target.x, target.y, target.z)
 
         # We compute the angle between the current target position and the target
         # position here
-
         start_position: tuple[float, float] = (self.position.x, self.position.y)
         target_angle = angle_between_points(start_position, target)
         angle_to_rotate = target_angle - self.yaw
@@ -149,7 +151,7 @@ class DroneController(Node):
         
         # Prepare the cmd_vel message
         move_msg = Twist()
-        move_msg.linear = Vector3(x=-self.wind[0], y=-self.wind[1], z=0.0)
+        move_msg.linear = Vector3(x=0.0, y=0.0, z=0.0)
         move_msg.angular = Vector3(x=0.0, y=0.0, z=ANGULAR_VELOCITY*rotation_dir) # rad/s
 
 
@@ -211,16 +213,13 @@ class DroneController(Node):
     # Function used to wait for the current task. After receiving the task, it submits
     # to all the drone topics
     def get_task_and_subscribe_to_drones(self):
-
         while not self.task_announcer.wait_for_service(timeout_sec = 1.0):
             time.sleep(0.5)
-
         assignment_future = self.task_announcer.call_async(TaskAssignment.Request())
         assignment_future.add_done_callback(self.initialize_wind)
 
     
     def initialize_wind(self, assignment_future):
-
         task: TaskAssignment.Response = assignment_future.result()
         self.wind = [task.wind_vector.x, task.wind_vector.y, task.wind_vector.z]
 

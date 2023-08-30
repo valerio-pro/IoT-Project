@@ -17,8 +17,6 @@ from nav_msgs.msg import Odometry
 from math_utils import get_yaw
 from .drones_utils import all_positions_initialized, clustering, tsp, trivial_case
 
-WIND_VECTOR: list[float] = [0.0, 0.0, 0.0]
-
 class TaskAssigner(Node):
 
     def __init__(self):
@@ -28,7 +26,7 @@ class TaskAssigner(Node):
         self.task = None
         self.no_drones: int = 0
         self.targets: list[Point] = []
-        self.thresholds: list = []
+        self.thresholds: list[float] = []
 
         self.action_servers: list = []
         self.current_tasks: list =  []
@@ -36,6 +34,10 @@ class TaskAssigner(Node):
         self.wind: list[float] = []
 
         self.sim_time: int = 0 # contains simulation time in nanoseconds
+
+        self.aoi_weight: float = 0.0
+        self.fairness_weight: float = 0.0
+        self.violation_weight: float = 0.0
 
         self.targets_time_left: list[float] = [] # index "i" contains the remaining time of the target with id equal to "i+1" (targets' ids start from 1 in their names of the simulation)
         self.initial_targets_time: dict[tuple[float, float, float], float] = {} # contains pairs target_in_tuple_form: elapsed_time_since_target_was_last_visited
@@ -45,7 +47,6 @@ class TaskAssigner(Node):
         self.odometry_topic: list = []
 
         self.drone_assignment: dict[int, list[Point]] = {} # contains pairs drone_id: list_of_assigned_targets
-        self.centroids_targets_assignment: dict = {} # contains pairs cluster_centroid: list_of_targets_belonging_to_that_centroid
 
         # Contains pairs target_in_tuple_form: target_idx where target_idx is the index of the target in the list self.targets_time_left. The target is stored as a tuple (not Point).
         # Needed to obtain the index used to retrieve the time from "self.targets_time_left" when targets will be grouped in clusters and assigned 
@@ -132,7 +133,10 @@ class TaskAssigner(Node):
         self.current_tasks = [None]*task.no_drones
         self.idle = [True]*task.no_drones
         self.wind = [task.wind_vector.x, task.wind_vector.y, task.wind_vector.z]
-        WIND_VECTOR = self.wind
+
+        self.aoi_weight = task.aoi_weight
+        self.fairness_weight = task.fairness_weight
+        self.violation_weight = task.violation_weight
 
         self.position = [None]*task.no_drones
         self.yaw = [None]*task.no_drones
@@ -170,7 +174,7 @@ class TaskAssigner(Node):
 
     # Listen for targets' remaining time until expiration.
     # Time is stored in seconds inside self.targets_time_left.
-    # Index "i" of the list self.targets_time_left contains the remaining time of the target with id equal to "i".
+    # Index "i" of the list self.targets_time_left contains the remaining time (in seconds) of the target with id equal to "i".
     # When there is a violation the values in the list start going below 0
     def store_targets_time_left(self, msg: TargetsTimeLeft):
         self.targets_time_left = [float(t/(10**9)) for t in msg.times]

@@ -23,7 +23,7 @@ from iot_project_solution_src.math_utils import *
 DRONE_MIN_ALTITUDE_TO_PERFORM_MOVEMENT: int = 1
 
 FLY_UP_VELOCITY: float = 1.0
-ANGULAR_VELOCITY: float = 0.5
+ANGULAR_VELOCITY: float = 1.0
 
 class DroneController(Node):
 
@@ -131,13 +131,15 @@ class DroneController(Node):
         self.cmd_vel_topic.publish(stop_mov)
 
 
-    def rotate_to_target(self, target: Point, eps: float = 0.1):
+    # The "eps" error was changed from 0.1 to 0.3, in most cases there is no need to be so precise since
+    # there are already slight adjustments in the angle during "move_to_target". Better to start
+    # moving quickly towards the target than being so precise in adjusting the angle 
+    def rotate_to_target(self, target: Point, eps: float = 0.3):
 
         target: tuple[float, float, float] = (target.x, target.y, target.z)
 
         # We compute the angle between the current target position and the target
         # position here
-
         start_position: tuple[float, float] = (self.position.x, self.position.y)
         target_angle = angle_between_points(start_position, target)
         angle_to_rotate = target_angle - self.yaw
