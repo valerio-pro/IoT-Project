@@ -5,13 +5,13 @@ from sklearn.cluster import KMeans
 from mlrose import TravellingSales, TSPOpt, genetic_alg
 
 import numpy as np
-from geometry_msgs.msg import Point
 from math import inf, sqrt
+from functools import reduce
+
+from geometry_msgs.msg import Point
 from math_utils import point_distance, angle_between_points, move_vector
 
-VIOLATION_SCORING_WEIGHT: float = 1.0
-FAIRNESS_SCORING_WEIGHT: float = 0.5
-C: float = 5.0
+Coordinates = tuple[float, float, float]
 
 # Perform Clustering (K-means) on the given "targets" list. The number of clusters is equal to the number of drones (K = no_drones)
 def clustering(no_drones: int, targets: list[Point], position: list[Point], n_init: int = 10) -> dict[int, list[Point]]:
@@ -73,11 +73,11 @@ def assign_drones_to_clusters(position: list, centroids_targets_assignment: dict
 # Given a single target and a set of drones, computes and returns the closest drone to the given target.
 # Used in the trivial_case function
 def compute_closest_drone_to_target(target: Point, available_drones: dict[int, Point]) -> int:
-    target_tuple: tuple[float, float, float] = (target.x, target.y, target.z)
+    target_tuple: Coordinates = (target.x, target.y, target.z)
     best_distance = inf
     best_drone = None
     for drone, drone_position in available_drones.items():
-        drone_tuple: tuple[float, float, float] = (drone_position.x, drone_position.y, drone_position.z)
+        drone_tuple: Coordinates = (drone_position.x, drone_position.y, drone_position.z)
         curr_distance = point_distance(target_tuple, drone_tuple)
         if curr_distance < best_distance:
              best_distance = curr_distance
@@ -91,7 +91,7 @@ def compute_closest_drone_to_centroid(centroid: tuple, available_drones: dict[in
     best_distance = inf
     best_drone = None
     for drone, drone_position in available_drones.items():
-        drone_tuple: tuple[float, float, float] = (drone_position.x, drone_position.y, drone_position.z)
+        drone_tuple: Coordinates = (drone_position.x, drone_position.y, drone_position.z)
         curr_distance = point_distance(centroid, drone_tuple)
         if curr_distance < best_distance:
              best_distance = curr_distance
@@ -105,9 +105,9 @@ def compute_closest_target_to_drone(drone_position: Point, targets: list[Point])
     best_distance = inf
     best_target = None
     best_idx = None
-    drone_position_tuple: tuple[float, float, float] = (drone_position.x, drone_position.y, drone_position.z)
+    drone_position_tuple: Coordinates = (drone_position.x, drone_position.y, drone_position.z)
     for idx, target in enumerate(targets):
-        target_tuple: tuple[float, float, float] = (target.x, target.y, target.z)
+        target_tuple: Coordinates = (target.x, target.y, target.z)
         curr_distance = point_distance(drone_position_tuple, target_tuple)
         if curr_distance < best_distance:
             best_distance = curr_distance
@@ -131,45 +131,82 @@ def rotate(container: list, k: int) -> list:
 
 # Retrieve from here when each target was last visited by some drone (in seconds).
 # It works as it is even in case of violations
-def get_time_since_last_visit_to_target(initial_targets_time: dict[tuple[float, float, float], float], targets_time_left: list[float],
-                                        target_idx_assignment: dict[tuple[float, float, float], int], target: Point) -> float:
+def get_time_since_last_visit_to_target(initial_targets_time: dict[Coordinates, float], targets_time_left: list[float],
+                                        target_idx_assignment: dict[Coordinates, int], target: Point) -> float:
     return round(initial_targets_time[(target.x, target.y, target.z)] - targets_time_left[target_idx_assignment[(target.x, target.y, target.z)]], 3)
 
 
-# Computes an estimate of the time it takes a given drone to rotate and move towards a given target
-def compute_drone_travel_estimate(drone_position: Point, drone_yaw: float, drone_angular_velocity: float, target: Point) -> float:
-    
-    drone_position_tuple: tuple[float, float, float] = (drone_position.x, drone_position.y, drone_position.z)
-    target_tuple: tuple[float, float, float] = (target.x, target.y, target.z)
-
-    target_angle: float = angle_between_points(drone_position_tuple, target_tuple)
-    angle_to_rotate: float = target_angle - drone_yaw
-    t_rotation: float = angle_to_rotate/drone_angular_velocity
-
-    drone_linear_velocity_x, drone_linear_velocity_z = move_vector(drone_position_tuple, target_tuple)
-    velocity_magnitude: float = sqrt(drone_linear_velocity_x**2 + drone_linear_velocity_z**2)
-    if velocity_magnitude == 0.0:
-            return 0.0
-    
-    t_flight: float = point_distance(drone_position_tuple, target_tuple)/velocity_magnitude
-    return t_flight + t_rotation
-
-
-# Computes the average distance between a given target and all the remaining set of targets inside a cluster
-def compute_average_target_to_multitarget_distance(target: Point, all_targets: list[Point]) -> float:
-    return 0.0 if not all_targets else sum([point_distance((target.x, target.y, target.z), (other_target.x, other_target.y, other_target.z)) for other_target in all_targets])/len(all_targets)
-
-
-# Scoring function used to evaluate targets inside a cluster to perform a shift in the TSP schedule in order to meet 
+# Scoring function used to evaluate targets inside a cluster to perform a shift in the TSP schedule in order to meet
 # time and fairness constraints
-def scoring_function(drone_position: Point, target: Point, all_targets_in_cluster: list[Point], drone_yaw: float, drone_angular_velocity: float,
-                    initial_targets_time: dict[tuple[float, float, float], float], targets_time_left: list[float],
-                    target_idx_assignment: dict[tuple[float, float, float], int]) -> float:
-
-    drone_travel_estimate: float = compute_drone_travel_estimate(drone_position, drone_yaw, drone_angular_velocity, target)
+def scoring_function(target: Point, initial_targets_time: dict[Coordinates, float], targets_time_left: list[float],
+                    target_idx_assignment: dict[Coordinates, int], violation_weight: float, fairness_weight: float) -> float:
     
     t_left: float = targets_time_left[target_idx_assignment[(target.x, target.y, target.z)]]
     t_last_visit: float = get_time_since_last_visit_to_target(initial_targets_time, targets_time_left, target_idx_assignment, target)
-    average_target_to_multitarget_distance: float = compute_average_target_to_multitarget_distance(target=target, all_targets=all_targets_in_cluster)
+    return round(violation_weight * t_left + fairness_weight * t_last_visit, 3)
 
-    return VIOLATION_SCORING_WEIGHT * ((drone_travel_estimate + C)/(t_left + 0.1)) + FAIRNESS_SCORING_WEIGHT * (t_last_visit + average_target_to_multitarget_distance)
+
+# Given a TSP path/schedule, performs a 3-rotation (clockwise) of the schedule by evaluating each target with a scoring function.
+# Triplets will be ordered in the new schedule starting with the triplet with highest score. The actual order of the near-optimal TSP schedule is
+# of course still preserved (it is just shifted)
+def rotate_tsp_path(path_targets: list[Point], initial_targets_time: dict[Coordinates, float], targets_time_left: list[float],
+                    target_idx_assignment: dict[Coordinates, int], violation_weight: float, fairness_weight: float) -> list[Point]:
+    
+    path_targets_tuple: list[Coordinates] = [(target.x, target.y, target.z) for target in path_targets]
+
+    # Assign to each target a score using the scoring function
+    target_score_assignment: dict[Coordinates, float] = {(target.x, target.y, target.z): scoring_function(target, initial_targets_time,
+                                                                                targets_time_left, target_idx_assignment, violation_weight, fairness_weight)
+                                                                                for target in path_targets}
+
+    # Compute the score for triplets of targets
+    remainder: int = len(path_targets_tuple) % 3
+    triplets_scores: dict[tuple[Coordinates, Coordinates, Coordinates], float] = {(path_targets_tuple[t], path_targets_tuple[t+1], path_targets_tuple[t+2]):
+                                                                                    (target_score_assignment[path_targets_tuple[t]]+target_score_assignment[path_targets_tuple[t+1]]+target_score_assignment[path_targets_tuple[t+2]])/3
+                                                                                    for t in range(0, len(path_targets_tuple)-remainder, 3)}
+    
+    # Compute the score for the remaining targets (it is 1 or 2 targets)
+    if remainder != 0:
+        remaining_targets: tuple = tuple(path_targets_tuple[len(path_targets_tuple)-remainder:])
+        triplets_scores[remaining_targets] = sum([target_score_assignment[target] for target in remaining_targets])/remainder
+
+    # Compute the highest scoring triplet and find the index of the first target in such triplet inside the initial TSP path
+    highest_scoring_triplet: tuple[Coordinates, Coordinates, Coordinates] = reduce(lambda x,y: x if x[1] > y[1] else y, triplets_scores.items())[0]
+    idx_first_target_in_highest_scoring_triplet: int = path_targets_tuple.index(highest_scoring_triplet[0])
+
+    # print()
+    # print(f'Initial TSP path: {path_targets_tuple}')
+    # print()
+    # print(f'Triplets Scores: {triplets_scores}')
+    # print()
+    # print(f'Highest Scoring Triplet: {highest_scoring_triplet}')
+    # print()
+    # print(f'Rotated TSP Schedule: {rotate(path_targets_tuple, len(path_targets_tuple)-idx_first_target_in_highest_scoring_triplet)}')
+    # print()
+    # print(f'Index: {idx_first_target_in_highest_scoring_triplet}')
+
+    # Rotate the initial TSP path so that the highest scoring triplet of targets is the one that will be visited first
+    return rotate(path_targets, len(path_targets)-idx_first_target_in_highest_scoring_triplet)
+
+
+# # Computes an estimate of the time it takes a given drone to rotate and move towards a given target.
+# # Not currently in use
+# def compute_drone_travel_estimate(drone_position: Point, drone_yaw: float, drone_angular_velocity: float, target: Point) -> float:
+    
+#     drone_position_tuple: Coordinates = (drone_position.x, drone_position.y, drone_position.z)
+#     target_tuple: Coordinates = (target.x, target.y, target.z)
+
+#     target_angle: float = angle_between_points(drone_position_tuple, target_tuple)
+#     angle_to_rotate: float = target_angle - drone_yaw
+#     t_rotation: float = angle_to_rotate/drone_angular_velocity
+
+#     drone_linear_velocity_x, drone_linear_velocity_z = move_vector(drone_position_tuple, target_tuple)
+#     velocity_magnitude: float = sqrt(drone_linear_velocity_x**2 + drone_linear_velocity_z**2)
+
+#     return 0.0 if velocity_magnitude == 0.0 else t_rotation + point_distance(drone_position_tuple, target_tuple)/velocity_magnitude
+
+
+# # Computes the average distance between a given target and all the remaining set of targets inside a cluster.
+# # Not currently in use
+# def compute_average_target_to_multitarget_distance(target: Point, all_targets: list[Point]) -> float:
+#     return 0.0 if not all_targets else sum([point_distance((target.x, target.y, target.z), (other_target.x, other_target.y, other_target.z)) for other_target in all_targets])/len(all_targets)

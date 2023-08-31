@@ -1,17 +1,17 @@
 # simulation name can be defined like this
-simulation_name:Trivial Simulation with Wind
+simulation_name:TSP Schedule Rotation Simulation
 
 # specifies the number of drones in the simulation
-no_drones:3
+no_drones:1
 
 # specifies simulation time in seconds
 simulation_time:300
 
 # specifies targets positions
-target_positions:(-5,-5,3);(-5,2,7)
+target_positions:(-5,-5,3);(-5,2,7);(7,7,7);(3,-5,6);(5,5,7);(5,3,7);(1,5,7)
 
 # specifies threshold values for every target
-threshold_values:25,30
+threshold_values:1,10,5,15,10,5,28
 
 # specifies aoi weight
 aoi_weight:1.0
@@ -23,4 +23,4 @@ violation_weight:1.0
 fairness_weight:1.0
 
 # specifies wind direction and strength
-wind_vector:(0,8,0)
+wind_vector:(0,0,0)

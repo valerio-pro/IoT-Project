@@ -15,7 +15,9 @@ from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry
 
 from math_utils import get_yaw
-from .drones_utils import all_positions_initialized, clustering, tsp, trivial_case
+from .drones_utils import all_positions_initialized, clustering, tsp, trivial_case, scoring_function, rotate_tsp_path
+
+Coordinates = tuple[float, float, float]
 
 class TaskAssigner(Node):
 
@@ -39,8 +41,10 @@ class TaskAssigner(Node):
         self.fairness_weight: float = 0.0
         self.violation_weight: float = 0.0
 
+        self.fairness_threshold: float = 0.5
+
         self.targets_time_left: list[float] = [] # index "i" contains the remaining time of the target with id equal to "i+1" (targets' ids start from 1 in their names of the simulation)
-        self.initial_targets_time: dict[tuple[float, float, float], float] = {} # contains pairs target_in_tuple_form: elapsed_time_since_target_was_last_visited
+        self.initial_targets_time: dict[Coordinates, float] = {} # contains pairs target_in_tuple_form: elapsed_time_since_target_was_last_visited
         
         self.position: list[Point] = [] # index "i" contains the coordinates (a Point) of the drone with id "i"
         self.yaw: list = []
@@ -53,7 +57,7 @@ class TaskAssigner(Node):
         # to drones (order can't be efficiently deducted anymore from "self.targets").
         # E.g. self.targets_time_left[self.target_idx_assignment[target_in_tuple_form]]
         # Not pretty but useful
-        self.target_idx_assignment: dict[tuple[float, float, float], int] = {}
+        self.target_idx_assignment: dict[Coordinates, int] = {}
 
         self.task_announcer = self.create_client(
             TaskAssignment,
@@ -155,34 +159,17 @@ class TaskAssigner(Node):
             self.drone_assignment = clustering(no_drones=task.no_drones, targets=self.targets, position=self.position, n_init=10)
             self.drone_assignment = tsp(drone_assignment=self.drone_assignment, no_drones=task.no_drones, position=self.position,
                                         mutation_prob=0.1, max_attempts=1, max_iters=50)
+
+        # Decide what to do with respect to the fairness required by the mission.
+        # If the fairness weight is above the threshold then schedule all targets in the cluster.
+        # Otherwise prune each path by removing targets that are far away from every other target in the cluster
+        if self.fairness_weight >= self.fairness_threshold:
+            pass
+        else:
+            pass
                 
         # Initialize number of drones
         self.no_drones = task.no_drones
-
-
-    # Listen for drones positions
-    def store_position_callback(self, msg: Odometry):
-        drone_id: int = int(str(str(msg.header.frame_id.split(' ')[2]).split('/')[0]))
-        self.position[drone_id] = msg.pose.pose.position
-        self.yaw[drone_id] = get_yaw(
-            msg.pose.pose.orientation.x,
-            msg.pose.pose.orientation.y,
-            msg.pose.pose.orientation.z,
-            msg.pose.pose.orientation.w
-        )
-
-
-    # Listen for targets' remaining time until expiration.
-    # Time is stored in seconds inside self.targets_time_left.
-    # Index "i" of the list self.targets_time_left contains the remaining time (in seconds) of the target with id equal to "i".
-    # When there is a violation the values in the list start going below 0
-    def store_targets_time_left(self, msg: TargetsTimeLeft):
-        self.targets_time_left = [float(t/(10**9)) for t in msg.times]
-
-
-    # Callback used to store simulation time
-    def store_sim_time_callback(self, msg: Clock):
-        self.sim_time = msg.clock.sec * 10**9 + msg.clock.nanosec
 
 
     # This method starts on a separate thread an ever-going patrolling task, it does that
@@ -258,6 +245,31 @@ class TaskAssigner(Node):
     def patrol_completed_callback(self, future, drone_id: int):
         self.get_logger().info("Patrolling action for drone X3_%s has been completed. Drone is going idle" % drone_id)
         self.idle[drone_id] = True
+
+
+    # Listen for drones positions
+    def store_position_callback(self, msg: Odometry):
+        drone_id: int = int(str(str(msg.header.frame_id.split(' ')[2]).split('/')[0]))
+        self.position[drone_id] = msg.pose.pose.position
+        self.yaw[drone_id] = get_yaw(
+            msg.pose.pose.orientation.x,
+            msg.pose.pose.orientation.y,
+            msg.pose.pose.orientation.z,
+            msg.pose.pose.orientation.w
+        )
+
+
+    # Listen for targets' remaining time until expiration.
+    # Time is stored in seconds inside self.targets_time_left.
+    # Index "i" of the list self.targets_time_left contains the remaining time (in seconds) of the target with id equal to "i".
+    # When there is a violation the values in the list start going below 0
+    def store_targets_time_left(self, msg: TargetsTimeLeft):
+        self.targets_time_left = [float(t/(10**9)) for t in msg.times]
+
+
+    # Callback used to store simulation time
+    def store_sim_time_callback(self, msg: Clock):
+        self.sim_time = msg.clock.sec * 10**9 + msg.clock.nanosec
 
 
 def main():

@@ -13,6 +13,8 @@ from iot_project_interfaces.srv import TaskAssignment
 
 from iot_project_solution_src.math_utils import *
 
+Coordinates = tuple[float, float, float]
+
 # This variable is used for the drone to stay away from the ground
 # Now that our movement also makes the drone fly up if necessary, the
 # fly_to_altitude function should only be used to compensate if the drone is
@@ -136,7 +138,7 @@ class DroneController(Node):
     # moving quickly towards the target than being so precise in adjusting the angle 
     def rotate_to_target(self, target: Point, eps: float = 0.3):
 
-        target: tuple[float, float, float] = (target.x, target.y, target.z)
+        target: Coordinates = (target.x, target.y, target.z)
 
         # We compute the angle between the current target position and the target
         # position here
@@ -176,8 +178,8 @@ class DroneController(Node):
 
     def move_to_target(self, target: Point, eps: float = 0.5, angle_eps: float = 0.05):
 
-        current_position: tuple[float, float, float] = (self.position.x, self.position.y, self.position.z)
-        objective_point: tuple[float, float, float] = (target.x, target.y, target.z)
+        current_position: Coordinates = (self.position.x, self.position.y, self.position.z)
+        objective_point: Coordinates = (target.x, target.y, target.z)
 
         while point_distance(current_position, objective_point) > eps:
 
