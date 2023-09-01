@@ -15,9 +15,14 @@ from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry
 
 from math_utils import get_yaw
-from .drones_utils import all_positions_initialized, clustering, tsp, trivial_case, scoring_function, rotate_tsp_path
+from .drones_utils import all_positions_initialized, clustering, tsp, trivial_case, rotate_tsp_path
 
 Coordinates = tuple[float, float, float]
+
+# TODO
+# 1) Implementare distinzione tra caso fair e caso not-fair (la rotazione del tsp schedule va messa anche in submit_task)
+# 2) Ottimizzare il movimento del drone e gestire il vento
+# 3) Pulire tutto da codice e librerie inutili
 
 class TaskAssigner(Node):
 
@@ -159,6 +164,8 @@ class TaskAssigner(Node):
             self.drone_assignment = clustering(no_drones=task.no_drones, targets=self.targets, position=self.position, n_init=10)
             self.drone_assignment = tsp(drone_assignment=self.drone_assignment, no_drones=task.no_drones, position=self.position,
                                         mutation_prob=0.1, max_attempts=1, max_iters=50)
+            
+        #path = rotate_tsp_path(self.drone_assignment[0], self.initial_targets_time, self.targets_time_left, self.target_idx_assignment, self.violation_weight, self.fairness_weight)
 
         # Decide what to do with respect to the fairness required by the mission.
         # If the fairness weight is above the threshold then schedule all targets in the cluster.

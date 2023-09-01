@@ -176,6 +176,7 @@ class DroneController(Node):
         self.cmd_vel_topic.publish(stop_msg)
 
 
+    # A target is considered visited in iot_project_manager/target_handler if the distance between the drone and the target is below 0.8
     def move_to_target(self, target: Point, eps: float = 0.5, angle_eps: float = 0.05):
 
         current_position: Coordinates = (self.position.x, self.position.y, self.position.z)

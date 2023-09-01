@@ -159,7 +159,7 @@ class TaskAssigner(Node):
             self.drone_assignment = clustering(no_drones=task.no_drones, targets=self.targets, position=self.position, n_init=10)
             self.drone_assignment = tsp(drone_assignment=self.drone_assignment, no_drones=task.no_drones, position=self.position,
                                         mutation_prob=0.1, max_attempts=1, max_iters=50)
-
+        path = rotate_tsp_path(self.drone_assignment[0], self.initial_targets_time, self.targets_time_left, self.target_idx_assignment, self.violation_weight, self.fairness_weight)
         # Decide what to do with respect to the fairness required by the mission.
         # If the fairness weight is above the threshold then schedule all targets in the cluster.
         # Otherwise prune each path by removing targets that are far away from every other target in the cluster
