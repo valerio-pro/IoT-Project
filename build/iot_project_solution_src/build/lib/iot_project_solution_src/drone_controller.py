@@ -144,11 +144,18 @@ class DroneController(Node):
         # position here
         start_position: tuple[float, float] = (self.position.x, self.position.y)
         target_angle = angle_between_points(start_position, target)
+
+        # If the angle_to_rotate is greater than pi or smaller than -pi than we have an optimization
+        # on the direction of the rotation. The angle is mapped into [-pi/2, pi/2] so that the drone will
+        # rotate in the right direction. Without this optimization the rotation
+        # direction of the drone was not optimal in these cases
         angle_to_rotate = target_angle - self.yaw
+        if angle_to_rotate > math.pi or angle_to_rotate < -math.pi:
+            angle_to_rotate = math.asin(math.sin(target_angle - self.yaw))
 
         # We verify the optimal direction of the rotation here
         rotation_dir = -1
-        if angle_to_rotate < 0 or angle_to_rotate > math.pi:
+        if angle_to_rotate < 0:
             rotation_dir = 1
         
         # Prepare the cmd_vel message
@@ -176,7 +183,7 @@ class DroneController(Node):
         self.cmd_vel_topic.publish(stop_msg)
 
 
-    # A target is considered visited in iot_project_manager/target_handler if the distance between the drone and the target is below 0.8.
+    # A target is considered visited in iot_project_manager/target_handler if the distance between the drone and the target is below 0.8
     def move_to_target(self, target: Point, eps: float = 0.5, angle_eps: float = 0.05):
 
         current_position: Coordinates = (self.position.x, self.position.y, self.position.z)

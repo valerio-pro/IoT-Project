@@ -15,9 +15,14 @@ from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry
 
 from math_utils import get_yaw
-from .drones_utils import all_positions_initialized, clustering, tsp, trivial_case, scoring_function, rotate_tsp_path
+from .drones_utils import all_positions_initialized, clustering, tsp, trivial_case, rotate_tsp_tour, check_mission_requirements
 
 Coordinates = tuple[float, float, float]
+
+# TODO
+# 1) Scegliere parametri ottimali per clustering e tsp
+# 2) Ottimizzare il movimento del drone e gestire il vento
+# 3) Pulire tutto da codice e librerie inutili
 
 class TaskAssigner(Node):
 
@@ -156,18 +161,14 @@ class TaskAssigner(Node):
             self.drone_assignment = trivial_case(position=self.position, targets=self.targets, no_drones=task.no_drones)
         # We are not in the trivial case
         else:
-            self.drone_assignment = clustering(no_drones=task.no_drones, targets=self.targets, position=self.position, n_init=10)
+            # Perform Clustering
+            self.drone_assignment = clustering(no_drones=task.no_drones, targets=self.targets, position=self.position, n_init=20)
+            # Check Mission Requirements and eventually prune each cluster
+            self.drone_assignment = check_mission_requirements(drone_assignment=self.drone_assignment, fairness_weight=self.fairness_weight, fairness_threshold=self.fairness_threshold)
+            # Compute the TSP tour
             self.drone_assignment = tsp(drone_assignment=self.drone_assignment, no_drones=task.no_drones, position=self.position,
-                                        mutation_prob=0.1, max_attempts=1, max_iters=50)
-        path = rotate_tsp_path(self.drone_assignment[0], self.initial_targets_time, self.targets_time_left, self.target_idx_assignment, self.violation_weight, self.fairness_weight)
-        # Decide what to do with respect to the fairness required by the mission.
-        # If the fairness weight is above the threshold then schedule all targets in the cluster.
-        # Otherwise prune each path by removing targets that are far away from every other target in the cluster
-        if self.fairness_weight >= self.fairness_threshold:
-            pass
-        else:
-            pass
-                
+                                        mutation_prob=0.2, max_attempts=4, max_iters=30)
+
         # Initialize number of drones
         self.no_drones = task.no_drones
 
@@ -213,6 +214,8 @@ class TaskAssigner(Node):
 
         if not targets_to_patrol:
             targets_to_patrol = self.drone_assignment[drone_id]
+            targets_to_patrol = rotate_tsp_tour(self.drone_assignment[drone_id], self.initial_targets_time, self.targets_time_left,
+                                                self.target_idx_assignment, self.violation_weight, self.fairness_weight)
 
         patrol_task =  PatrollingAction.Goal()
         patrol_task.targets = targets_to_patrol

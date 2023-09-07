@@ -1,5 +1,5 @@
 # simulation name can be defined like this
-simulation_name:TSP Schedule Rotation Simulation
+simulation_name:Fair TSP Schedule Rotation Simulation
 
 # specifies the number of drones in the simulation
 no_drones:1
