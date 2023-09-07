@@ -147,11 +147,11 @@ class DroneController(Node):
 
         # If the angle_to_rotate is greater than pi or smaller than -pi than we have an optimization
         # on the direction of the rotation. The angle is mapped into [-pi/2, pi/2] so that the drone will
-        # rotate in the right direction. Without this optimization the rotation
+        # rotate for the right amount in the right direction. Without this optimization the rotation
         # direction of the drone was not optimal in these cases
         angle_to_rotate = target_angle - self.yaw
         if angle_to_rotate > math.pi or angle_to_rotate < -math.pi:
-            angle_to_rotate = math.asin(math.sin(target_angle - self.yaw))
+            angle_to_rotate = math.pi - math.asin(math.sin(target_angle - self.yaw))
 
         # We verify the optimal direction of the rotation here
         rotation_dir = -1
