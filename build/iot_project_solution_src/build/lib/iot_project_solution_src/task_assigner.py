@@ -15,7 +15,7 @@ from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry
 
 from math_utils import get_yaw
-from .drones_utils import all_positions_initialized, clustering, tsp, trivial_case, rotate_tsp_tour, check_mission_requirements
+from .drones_utils import trivial_case, clustering, tsp, rotate_tsp_tour, check_mission_requirements
 
 Coordinates = tuple[float, float, float]
 
@@ -153,7 +153,7 @@ class TaskAssigner(Node):
         # Wait for all starting positions to be initialized.
         # We need to wait here since both the trivial and non-trivial case exploit the 
         # drones' starting positions
-        while not all_positions_initialized(position=self.position):
+        while not self.all_positions_initialized():
             pass
 
         # We are in the trivial case. Compute the assignment of targets here
@@ -204,7 +204,7 @@ class TaskAssigner(Node):
     #
     # Executed every time all targets in "targets_to_patrol" have been visited (i.e. task completed)
     def submit_task(self, drone_id: int, targets_to_patrol: list[Point] = []):
-
+        
         self.get_logger().info("Submitting task for drone X3_%s" % drone_id)
     
         while not self.action_servers[drone_id].wait_for_server(timeout_sec = 1.0):
@@ -273,6 +273,14 @@ class TaskAssigner(Node):
     # Callback used to store simulation time
     def store_sim_time_callback(self, msg: Clock):
         self.sim_time = msg.clock.sec * 10**9 + msg.clock.nanosec
+
+    
+    # Returns True if all drones' positions are initialized (not None)
+    def all_positions_initialized(self) -> bool:
+        for pos in self.position:
+            if not pos:
+                return False
+        return True
 
 
 def main():

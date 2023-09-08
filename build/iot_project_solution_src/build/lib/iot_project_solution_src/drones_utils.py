@@ -118,14 +118,6 @@ def compute_closest_target_to_drone(drone_position: Point, targets: list[Point])
             best_target = target
             best_idx = idx
     return  best_idx, best_target
-        
-
-# Returns True if all drones' positions are initialized (not None)
-def all_positions_initialized(position: list[Point]) -> bool:
-    for pos in position:
-        if not pos:
-            return False
-    return True
 
 
 # Perform a "clockwise" rotation of the input list of "k" positions

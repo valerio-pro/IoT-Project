@@ -25,7 +25,7 @@ Coordinates = tuple[float, float, float]
 DRONE_MIN_ALTITUDE_TO_PERFORM_MOVEMENT: int = 1
 
 FLY_UP_VELOCITY: float = 1.0
-ANGULAR_VELOCITY: float = 1.0
+ANGULAR_VELOCITY: float = 0.75
 
 class DroneController(Node):
 
@@ -133,10 +133,8 @@ class DroneController(Node):
         self.cmd_vel_topic.publish(stop_mov)
 
 
-    # The "eps" error was changed from 0.1 to 0.3, in most cases there is no need to be so precise since
-    # there are already slight adjustments in the angle during "move_to_target". Better to start
-    # moving quickly towards the target than being so precise in adjusting the angle 
-    def rotate_to_target(self, target: Point, eps: float = 0.3):
+    # The "eps" error was changed from 0.1 to 0.15
+    def rotate_to_target(self, target: Point, eps: float = 0.1):
 
         target: Coordinates = (target.x, target.y, target.z)
 
@@ -145,20 +143,19 @@ class DroneController(Node):
         start_position: tuple[float, float] = (self.position.x, self.position.y)
         target_angle = angle_between_points(start_position, target)
 
-        # If the angle_to_rotate is greater than pi or smaller than -pi than we have an optimization
-        # on the direction of the rotation. The angle is mapped into [-pi/2, pi/2] so that the drone will
-        # rotate in the right direction. Without this optimization the rotation
-        # direction of the drone was not optimal in these cases
+        # Drone rotation is optimized so that each drone will rotate for the right amount/angle in the optimal direction of rotation.
+        # Without this optimization the rotation direction of the drone was not optimal in these cases
         angle_to_rotate = target_angle - self.yaw
-        print(f'ANGLE TO ROTATE BEFORE: {angle_to_rotate}')
-        if angle_to_rotate > math.pi or angle_to_rotate < -math.pi:
-            angle_to_rotate = math.pi - math.asin(math.sin(target_angle - self.yaw))
+        angle_to_rotate_degrees = math.degrees(angle_to_rotate) % 360
 
-        print(f'ANGLE TO ROTATE AFTER: {angle_to_rotate}')
-        # OK FOR ANGLES > -pi and 0 < -pi < 0
+        if math.floor(angle_to_rotate_degrees/180.0) % 2 == 0: # angle is in [k*pi, (k+1)*pi] with k \in {2n}_{n=0,1,2,3,...}
+            angle_to_rotate = math.radians(angle_to_rotate_degrees)
+        else: # angle is in [k*pi, (k+1)*pi] with k \in {2n+1}_{n=0,1,2,3,...}
+            angle_to_rotate = -math.radians(360.0-(angle_to_rotate_degrees))
+
         # We verify the optimal direction of the rotation here
         rotation_dir = -1
-        if angle_to_rotate < 0:
+        if angle_to_rotate < 0 or angle_to_rotate > math.pi:
             rotation_dir = 1
         
         # Prepare the cmd_vel message
