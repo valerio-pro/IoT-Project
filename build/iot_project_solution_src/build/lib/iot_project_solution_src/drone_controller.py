@@ -134,7 +134,7 @@ class DroneController(Node):
 
 
     # The "eps" error was changed from 0.1 to 0.15
-    def rotate_to_target(self, target: Point, eps: float = 0.1):
+    def rotate_to_target(self, target: Point, eps: float = 0.15):
 
         target: Coordinates = (target.x, target.y, target.z)
 

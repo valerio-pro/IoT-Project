@@ -25,7 +25,7 @@ Coordinates = tuple[float, float, float]
 DRONE_MIN_ALTITUDE_TO_PERFORM_MOVEMENT: int = 1
 
 FLY_UP_VELOCITY: float = 1.0
-ANGULAR_VELOCITY: float = 0.75
+ANGULAR_VELOCITY: float = 0.75 # rad/s
 
 class DroneController(Node):
 
@@ -133,8 +133,8 @@ class DroneController(Node):
         self.cmd_vel_topic.publish(stop_mov)
 
 
-    # The "eps" error was changed from 0.1 to 0.15
-    def rotate_to_target(self, target: Point, eps: float = 0.1):
+    # The "eps" error has been changed from 0.1 to 0.15
+    def rotate_to_target(self, target: Point, eps: float = 0.15):
 
         target: Coordinates = (target.x, target.y, target.z)
 
@@ -146,7 +146,7 @@ class DroneController(Node):
         # Drone rotation is optimized so that each drone will rotate for the right amount/angle in the optimal direction of rotation.
         # Without this optimization the rotation direction of the drone was not optimal in these cases
         angle_to_rotate = target_angle - self.yaw
-        angle_to_rotate_degrees = math.degrees(angle_to_rotate) % 360
+        angle_to_rotate_degrees = math.degrees(angle_to_rotate) % 360 # Python's % returns a number having the same sign as the divisor
 
         if math.floor(angle_to_rotate_degrees/180.0) % 2 == 0: # angle is in [k*pi, (k+1)*pi] with k \in {2n}_{n=0,1,2,3,...}
             angle_to_rotate = math.radians(angle_to_rotate_degrees)
