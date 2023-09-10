@@ -19,11 +19,6 @@ from .drones_utils import trivial_case, clustering, tsp, rotate_tsp_tour, check_
 
 Coordinates = tuple[float, float, float]
 
-# TODO
-# 1) Scegliere parametri ottimali per clustering e tsp
-# 2) Ottimizzare il movimento del drone e gestire il vento
-# 3) Pulire tutto da codice e librerie inutili
-
 class TaskAssigner(Node):
 
     def __init__(self):

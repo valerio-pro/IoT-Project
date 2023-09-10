@@ -25,7 +25,7 @@ Coordinates = tuple[float, float, float]
 DRONE_MIN_ALTITUDE_TO_PERFORM_MOVEMENT: int = 1
 
 FLY_UP_VELOCITY: float = 1.0
-ANGULAR_VELOCITY: float = 0.75 # rad/s
+ANGULAR_VELOCITY: float = 0.5 # rad/s
 
 class DroneController(Node):
 

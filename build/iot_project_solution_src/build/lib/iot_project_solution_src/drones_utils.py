@@ -180,7 +180,6 @@ def prune_targets(targets: list[Point], threshold: float = 0.75) -> list[Point]:
     if distances:
         distances.sort(key=lambda x: x[1], reverse=False)
         if distances[0][1] < threshold * original_average_distance:
-            print(f'PRUNING: {distances[0][0]}; INIT DISTANCE: {original_average_distance}; NEW DISTANCE: {distances[0][1]}')
             targets.remove(distances[0][0])
     return targets
 
@@ -212,17 +211,6 @@ def rotate_tsp_tour(path_targets: list[Point], initial_targets_time: dict[Coordi
     # Compute the highest scoring triplet and find the index of the first target in such triplet inside the initial TSP path
     highest_scoring_triplet: tuple[Coordinates, Coordinates, Coordinates] = reduce(lambda x,y: x if x[1] >= y[1] else y, triplets_scores.items())[0]
     idx_first_target_in_highest_scoring_triplet: int = path_targets_tuple.index(highest_scoring_triplet[0])
-
-    # print()
-    # print(f'Initial TSP path: {path_targets_tuple}')
-    # print()
-    # print(f'Triplets Scores: {triplets_scores}')
-    # print()
-    # print(f'Highest Scoring Triplet: {highest_scoring_triplet}')
-    # print()
-    # print(f'Rotated TSP Schedule: {rotate(path_targets_tuple, len(path_targets_tuple)-idx_first_target_in_highest_scoring_triplet)}')
-    # print()
-    # print(f'Index: {idx_first_target_in_highest_scoring_triplet}')
 
     # Rotate the initial TSP path so that the highest scoring triplet of targets is the one that will be visited first
     return rotate(path_targets, len(path_targets)-idx_first_target_in_highest_scoring_triplet)
