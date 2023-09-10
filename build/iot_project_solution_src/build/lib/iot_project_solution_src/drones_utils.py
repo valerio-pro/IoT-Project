@@ -14,7 +14,7 @@ from math_utils import point_distance
 
 Coordinates = tuple[float, float, float]
 
-C: int = 3
+H: int = 3
 
 # Perform Clustering (K-means) on the given "targets" list. The number of clusters is equal to the number of drones (K = no_drones)
 def clustering(no_drones: int, targets: list[Point], position: list[Point], n_init: int = 10) -> dict[int, list[Point]]:
@@ -152,7 +152,7 @@ def scoring_function(target: Point, all_targets: list[Point], initial_targets_ti
     t_last_visit: float = get_time_since_last_visit_to_target(initial_targets_time, targets_time_left, target_idx_assignment, target)
     max_threshold: float = max(initial_targets_time.values())
     average_target_to_multitarget_distance: float = compute_average_target_to_multitarget_distance(target, all_targets)
-    return round(violation_weight * ((C*max_threshold)/(t_left + 0.1)) + fairness_weight * (t_last_visit + average_target_to_multitarget_distance), 3)
+    return round(violation_weight * ((H*max_threshold)/(t_left + 0.1)) + fairness_weight * (t_last_visit + average_target_to_multitarget_distance), 3)
 
 
 # Checks mission requirements (i.e., fairness) and eventually prunes greedily one target from each cluster
@@ -204,7 +204,7 @@ def rotate_tsp_tour(path_targets: list[Point], initial_targets_time: dict[Coordi
                                                                                     round((target_score_assignment[path_targets_tuple[t]]+target_score_assignment[path_targets_tuple[t+1]]+target_score_assignment[path_targets_tuple[t+2]])/3, 3)
                                                                                     for t in range(0, len(path_targets_tuple)-remainder, 3)}
     
-    # Compute the score for the remaining targets (it is 1 or 2 targets)
+    # Compute the score for the remaining targets
     if remainder != 0:
         remaining_targets: tuple = tuple(path_targets_tuple[len(path_targets_tuple)-remainder:])
         triplets_scores[remaining_targets] = round(sum([target_score_assignment[target] for target in remaining_targets])/remainder, 3)

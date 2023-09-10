@@ -151,8 +151,7 @@ class TaskAssigner(Node):
         self.yaw = [None]*task.no_drones
 
         # Wait for all starting positions to be initialized.
-        # We need to wait here since both the trivial and non-trivial case exploit the 
-        # drones' starting positions
+        # We need to wait here since both the trivial and non-trivial case exploit the drones' starting positions
         while not self.all_positions_initialized():
             pass
 
